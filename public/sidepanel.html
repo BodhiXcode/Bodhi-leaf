@@ -7,7 +7,8 @@
     <title>Bodhi Leaf — Commerce Copilot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="sidepanel/sidepanel.css">
 </head>
 
@@ -29,7 +30,10 @@
         </header>
 
         <!-- Status -->
-        <div id="status">Open a product page and tap <strong>Scan Page</strong> to begin.</div>
+        <div id="status">
+            <span class="status-icon">🔍</span>
+            Open an Amazon product page and tap <strong>Scan Page</strong> to begin.
+        </div>
 
         <!-- Skeleton loader -->
         <div id="skeleton" style="display:none">
@@ -61,7 +65,7 @@
             <div class="card" id="card-title" style="display:none">
                 <div class="card-label">Product</div>
                 <div class="card-value card-value--title" id="val-title"></div>
-                <div class="card-meta" id="val-brand"></div>
+                <div class="card-meta-brand" id="val-brand"></div>
             </div>
 
             <!-- Price block -->
@@ -72,17 +76,17 @@
                     <span class="price-mrp" id="val-mrp"></span>
                     <span class="price-savings" id="val-savings"></span>
                 </div>
-                <div class="card-meta" id="val-deal"></div>
-                <div class="card-meta" id="val-coupon"></div>
-                <div class="card-meta" id="val-emi"></div>
+                <div id="val-deal"></div>
+                <div id="val-coupon"></div>
+                <div id="val-emi"></div>
             </div>
 
             <!-- Availability & delivery -->
             <div class="card" id="card-availability" style="display:none">
                 <div class="card-label">Availability</div>
-                <div class="card-value" id="val-availability"></div>
-                <div class="card-meta" id="val-delivery"></div>
-                <div class="card-meta" id="val-fastest-delivery"></div>
+                <div class="availability-badge" id="val-availability"></div>
+                <div class="delivery-info" id="val-delivery"></div>
+                <div class="delivery-info" id="val-fastest-delivery"></div>
             </div>
 
             <!-- Features -->
@@ -96,8 +100,12 @@
                 <div class="card-label">Ratings</div>
                 <div class="rating-hero">
                     <span class="rating-big" id="val-rating-value"></span>
-                    <span class="rating-count" id="val-rating-count"></span>
+                    <div class="rating-right">
+                        <div class="rating-stars" id="val-rating-stars"></div>
+                        <span class="rating-count" id="val-rating-count"></span>
+                    </div>
                 </div>
+                <div class="rating-histogram" id="rating-histogram"></div>
                 <div class="rating-filters" id="rating-filters"></div>
             </div>
 

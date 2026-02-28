@@ -5,6 +5,7 @@ import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
 const loadBtn = document.getElementById("lbtn");
 const status = document.getElementById("status");
 const skeleton = document.getElementById("skeleton");
+const container = document.getElementById("container");
 
 const cardImage = document.getElementById("card-image");
 const cardTitle = document.getElementById("card-title");
@@ -30,14 +31,76 @@ const valDelivery = document.getElementById("val-delivery");
 const valFastestDelivery = document.getElementById("val-fastest-delivery");
 const valFeatures = document.getElementById("val-features");
 const valRatingValue = document.getElementById("val-rating-value");
+const valRatingStars = document.getElementById("val-rating-stars");
 const valRatingCount = document.getElementById("val-rating-count");
+const ratingHistogram = document.getElementById("rating-histogram");
 const ratingFilters = document.getElementById("rating-filters");
 const valReviews = document.getElementById("val-reviews");
 const valSpecs = document.getElementById("val-specs");
 const valSeller = document.getElementById("val-seller");
 
+// ── Constants ──
+const PORTAL_MIN_DISPLAY_MS = 2000;
+const MAX_REVIEWS = 10;
+const MAX_FEATURES = 10;
+const REVIEW_TRUNCATE_LENGTH = 200;
+const EMI_MAX_LENGTH = 80;
+const STAGGER_DELAY = 0.07;
+
 // ── Helpers ──
 const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardReviews, cardSpecs, cardSeller];
+
+function escapeHtml(str: string): string {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function cleanBrandName(raw: string): string {
+  return raw
+    .replace(/^Visit the\s+/i, "")
+    .replace(/\s+Store$/i, "")
+    .replace(/^Brand:\s*/i, "")
+    .trim();
+}
+
+function cleanPrice(raw: string): string {
+  return raw.replace(/[\.\s]+$/, "").trim();
+}
+
+function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const truncated = text.substring(0, max);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return (lastSpace > max * 0.6 ? truncated.substring(0, lastSpace) : truncated) + "…";
+}
+
+function parseRatingNumber(ratingText: string): number {
+  const match = ratingText.match(/([\d.]+)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+function renderStars(rating: number): string {
+  const fullStars = Math.floor(rating);
+  const hasHalf = rating - fullStars >= 0.3;
+  const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+  let html = "";
+  for (let i = 0; i < fullStars; i++) html += '<span class="star-filled">★</span>';
+  if (hasHalf) html += '<span class="star-half">★</span>';
+  for (let i = 0; i < emptyStars; i++) html += '<span class="star-empty">★</span>';
+  return html;
+}
+
+function setScanning(active: boolean) {
+  if (!loadBtn) return;
+  if (active) {
+    loadBtn.classList.add("scanning");
+    loadBtn.setAttribute("aria-disabled", "true");
+  } else {
+    loadBtn.classList.remove("scanning");
+    loadBtn.removeAttribute("aria-disabled");
+  }
+}
 
 function clearPanel() {
   allCards().forEach(card => {
@@ -50,9 +113,11 @@ function clearPanel() {
     valAvailability, valDelivery, valFastestDelivery, valRatingValue, valRatingCount, valSeller];
   vals.forEach(v => { if (v) v.textContent = ""; });
   if (valFeatures) valFeatures.innerHTML = "";
+  if (ratingHistogram) ratingHistogram.innerHTML = "";
   if (ratingFilters) ratingFilters.innerHTML = "";
   if (valReviews) valReviews.innerHTML = "";
   if (valSpecs) valSpecs.innerHTML = "";
+  if (valRatingStars) valRatingStars.innerHTML = "";
   if (valImage) { valImage.src = ""; valImage.alt = ""; }
 }
 
@@ -60,25 +125,48 @@ function showSkeleton() {
   if (skeleton) skeleton.style.display = "block";
   if (status) status.style.display = "none";
 }
+
 function hideSkeleton() {
   if (skeleton) skeleton.style.display = "none";
 }
+
 function showStatus(msg: string) {
   if (status) { status.style.display = "block"; status.innerHTML = msg; }
 }
+
 function hideStatus() {
   if (status) status.style.display = "none";
 }
 
 // ── Data extraction ──
-const PORTAL_MIN_DISPLAY_MS = 3500;
+let isScanning = false;
 
 function requestPageData(ratingFilter?: string) {
+  if (isScanning) return;
+  isScanning = true;
+
   clearPanel();
   showSkeleton();
+  setScanning(true);
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]?.id) return;
+    if (!tabs[0]?.id) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus('<span class="status-icon">⚠️</span>Could not access the current tab.');
+      return;
+    }
+
+    const tabUrl = tabs[0].url || "";
+    if (!tabUrl.includes("amazon.")) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus('<span class="status-icon">🛒</span>Bodhi Leaf works on <strong>Amazon</strong> product pages.<br>Navigate to a product and try again.');
+      return;
+    }
+
     const tabId = tabs[0].id;
     const portalStart = Date.now();
     showPortalAnimation(tabId);
@@ -128,9 +216,14 @@ function requestPageData(ratingFilter?: string) {
           ratingCount: getText(s.ratingCount),
           ratingBtns: Array.from(document.querySelectorAll(s.ratingFilterBtns)).map((el: Element) => {
             if (el instanceof HTMLElement) {
+              const cells = el.querySelectorAll("td");
+              const label = cells[0]?.textContent?.trim() || "";
+              const pct = cells[2]?.textContent?.trim() || cells[1]?.textContent?.trim() || "";
               return {
-                text: el.textContent?.trim() || '',
-                selected: el.classList.contains('a-histogram-row-selected') || false
+                text: el.textContent?.trim() || "",
+                label: label,
+                pct: pct,
+                selected: el.classList.contains("a-histogram-row-selected") || false
               };
             }
             return null;
@@ -142,11 +235,11 @@ function requestPageData(ratingFilter?: string) {
             const starsEl = rev.querySelector(s.reviewStars);
             const dateEl = rev.querySelector(s.reviewDate);
             return {
-              title: titleEl?.textContent?.trim() || '',
-              body: bodyEl?.textContent?.trim() || '',
-              author: nameEl?.textContent?.trim() || '',
-              stars: starsEl?.textContent?.trim() || '',
-              date: dateEl?.textContent?.trim() || '',
+              title: titleEl?.textContent?.trim() || "",
+              body: bodyEl?.textContent?.trim() || "",
+              author: nameEl?.textContent?.trim() || "",
+              stars: starsEl?.textContent?.trim() || "",
+              date: dateEl?.textContent?.trim() || "",
             };
           }),
           specs: getTableRows(s.technicalDetails),
@@ -167,10 +260,14 @@ function requestPageData(ratingFilter?: string) {
       setTimeout(() => {
         hidePortalAnimation(tabId);
         hideSkeleton();
+        isScanning = false;
+        setScanning(false);
+
         if (results && results[0]?.result) {
           populatePanel(results[0].result, ratingFilter);
+          container?.scrollTo({ top: 0, behavior: "smooth" });
         } else {
-          showStatus("No product data found on this page.");
+          showStatus('<span class="status-icon">🔍</span>No product data found on this page.');
         }
       }, remaining);
     });
@@ -186,7 +283,7 @@ function populatePanel(data: any, _ratingFilter?: string) {
   function revealCard(card: HTMLElement | null) {
     if (!card) return;
     card.style.display = "block";
-    card.style.animationDelay = `${staggerIdx * 0.08}s`;
+    card.style.animationDelay = `${staggerIdx * STAGGER_DELAY}s`;
     staggerIdx++;
   }
 
@@ -201,33 +298,47 @@ function populatePanel(data: any, _ratingFilter?: string) {
   if (data.title && cardTitle && valTitle) {
     revealCard(cardTitle);
     valTitle.textContent = data.title;
-    if (valBrand && data.brand) valBrand.textContent = data.brand;
+    if (valBrand && data.brand) {
+      const brand = cleanBrandName(data.brand);
+      if (brand) valBrand.textContent = brand;
+    }
   }
 
   // Price block
   if (data.price && cardPrice && valPrice) {
     revealCard(cardPrice);
+    const price = cleanPrice(data.price);
     const fraction = data.priceFraction ? `.${data.priceFraction}` : "";
-    valPrice.textContent = `₹${data.price}${fraction}`;
+    valPrice.textContent = `₹${price}${fraction}`;
     if (valMrp && data.listPrice) valMrp.textContent = data.listPrice;
     if (valSavings && data.savings) valSavings.textContent = data.savings;
-    if (valDeal && data.dealBadge) valDeal.textContent = `🏷️ ${data.dealBadge}`;
-    if (valCoupon && data.coupon) valCoupon.textContent = `🎟️ ${data.coupon}`;
-    if (valEmi && data.emi) valEmi.textContent = data.emi;
+    if (valDeal && data.dealBadge) {
+      valDeal.className = "badge-deal";
+      valDeal.textContent = `🏷️ ${data.dealBadge}`;
+    }
+    if (valCoupon && data.coupon) {
+      valCoupon.className = "badge-coupon";
+      valCoupon.textContent = `🎟️ ${data.coupon}`;
+    }
+    if (valEmi && data.emi) {
+      const emiText = truncateText(data.emi, EMI_MAX_LENGTH);
+      valEmi.className = "emi-line";
+      valEmi.innerHTML = `<span class="emi-icon">💳</span> ${escapeHtml(emiText)}`;
+    }
   }
 
   // Availability & delivery
   if ((data.availability || data.delivery) && cardAvailability) {
     revealCard(cardAvailability);
     if (valAvailability && data.availability) valAvailability.textContent = data.availability;
-    if (valDelivery && data.delivery) valDelivery.textContent = `📦 ${data.delivery}`;
-    if (valFastestDelivery && data.fastestDelivery) valFastestDelivery.textContent = `⚡ ${data.fastestDelivery}`;
+    if (valDelivery && data.delivery) valDelivery.innerHTML = `📦 ${escapeHtml(data.delivery)}`;
+    if (valFastestDelivery && data.fastestDelivery) valFastestDelivery.innerHTML = `⚡ ${escapeHtml(data.fastestDelivery)}`;
   }
 
   // Features
   if (data.features?.length && cardFeatures && valFeatures) {
     revealCard(cardFeatures);
-    valFeatures.innerHTML = data.features.slice(0, 10)
+    valFeatures.innerHTML = data.features.slice(0, MAX_FEATURES)
       .map((f: string) => `<li>${escapeHtml(f)}</li>`)
       .join("");
   }
@@ -235,41 +346,82 @@ function populatePanel(data: any, _ratingFilter?: string) {
   // Rating
   if (data.ratingValue && cardRating) {
     revealCard(cardRating);
-    if (valRatingValue) valRatingValue.textContent = data.ratingValue;
+    const numRating = parseRatingNumber(data.ratingValue);
+    if (valRatingValue) valRatingValue.textContent = numRating.toFixed(1);
+    if (valRatingStars) valRatingStars.innerHTML = renderStars(numRating);
     if (valRatingCount) valRatingCount.textContent = data.ratingCount || "";
-    if (data.ratingBtns?.length && ratingFilters) {
+
+    // Histogram bars
+    if (data.ratingBtns?.length && ratingHistogram) {
+      const histogramData = data.ratingBtns
+        .map((btn: any) => {
+          const labelMatch = btn.label?.match(/(\d)\s*star/i);
+          const pctMatch = btn.pct?.match(/(\d+)/);
+          if (labelMatch && pctMatch) {
+            return { stars: parseInt(labelMatch[1]), pct: parseInt(pctMatch[1]) };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (histogramData.length > 0) {
+        ratingHistogram.innerHTML = histogramData.map((row: any) =>
+          `<div class="histogram-row" data-star="${row.stars}">
+            <span class="histogram-label">${row.stars} star</span>
+            <div class="histogram-bar-track">
+              <div class="histogram-bar-fill" style="width: ${row.pct}%"></div>
+            </div>
+            <span class="histogram-pct">${row.pct}%</span>
+          </div>`
+        ).join("");
+
+        Array.from(ratingHistogram.querySelectorAll(".histogram-row")).forEach(el => {
+          el.addEventListener("click", () => {
+            const star = (el as HTMLElement).dataset.star || "";
+            requestPageData(`${star} star`);
+          });
+        });
+      }
+    }
+
+    // Fallback to text buttons if histogram parsing fails
+    if (data.ratingBtns?.length && ratingHistogram && !ratingHistogram.innerHTML && ratingFilters) {
       ratingFilters.innerHTML = data.ratingBtns.map((btn: any, idx: number) =>
-        `<button class="rating-btn${btn.selected ? ' selected' : ''}" data-idx="${idx}">${escapeHtml(btn.text)}</button>`
+        `<button class="rating-btn${btn.selected ? " selected" : ""}" data-idx="${idx}">${escapeHtml(btn.text)}</button>`
       ).join("");
-      Array.from(ratingFilters.querySelectorAll('.rating-btn')).forEach((el: Element) => {
-        el.addEventListener('click', (e) => {
-          const filter = (e.currentTarget as HTMLElement).textContent?.trim() || '';
+      Array.from(ratingFilters.querySelectorAll(".rating-btn")).forEach((el: Element) => {
+        el.addEventListener("click", (e) => {
+          const filter = (e.currentTarget as HTMLElement).textContent?.trim() || "";
           requestPageData(filter);
         });
       });
     }
   }
 
-  // Reviews — structured cards
+  // Reviews
   if (data.reviews?.length && cardReviews && valReviews) {
     revealCard(cardReviews);
-    valReviews.innerHTML = data.reviews.map((r: any) => {
-      const stars = r.stars ? `<div class="review-stars">${escapeHtml(r.stars)}</div>` : '';
-      const title = r.title ? `<div class="review-title-text">${escapeHtml(r.title)}</div>` : '';
-      const author = r.author ? `<span class="review-author">${escapeHtml(r.author)}</span>` : '';
-      const date = r.date ? `<span class="review-date">${escapeHtml(r.date)}</span>` : '';
-      const meta = (author || date) ? `<div class="review-meta">${author}${date}</div>` : '';
-      const body = r.body ? escapeHtml(r.body) : '';
-      const needsToggle = body.length > 200;
-      return `<div class="review">${stars}${title}${meta}${body}${needsToggle ? `<button class="review-toggle">Show more</button>` : ''
-        }</div>`;
+    valReviews.innerHTML = data.reviews.slice(0, MAX_REVIEWS).map((r: any) => {
+      const starNum = parseRatingNumber(r.stars);
+      const stars = starNum > 0
+        ? `<div class="review-stars">${renderStars(starNum)} ${starNum.toFixed(1)}</div>`
+        : "";
+      const title = r.title ? `<div class="review-title-text">${escapeHtml(r.title)}</div>` : "";
+      const author = r.author ? `<span class="review-author">${escapeHtml(r.author)}</span>` : "";
+      const date = r.date ? `<span class="review-date">${escapeHtml(r.date)}</span>` : "";
+      const meta = (author || date) ? `<div class="review-meta">${author}${date}</div>` : "";
+      const body = r.body ? `<div class="review-body-text">${escapeHtml(r.body)}</div>` : "";
+      const needsToggle = (r.body?.length || 0) > REVIEW_TRUNCATE_LENGTH;
+      const toggle = needsToggle ? `<button class="review-toggle">Show more ↓</button>` : "";
+      return `<div class="review">${stars}${title}${meta}${body}${toggle}</div>`;
     }).join("");
-    Array.from(valReviews.querySelectorAll('.review-toggle')).forEach(btn => {
-      btn.addEventListener('click', (e) => {
+
+    Array.from(valReviews.querySelectorAll(".review-toggle")).forEach(btn => {
+      btn.addEventListener("click", (e) => {
         const review = (e.currentTarget as HTMLElement).parentElement;
         if (!review) return;
-        const expanded = review.classList.toggle('review--expanded');
-        (e.currentTarget as HTMLElement).textContent = expanded ? 'Show less' : 'Show more';
+        const expanded = review.classList.toggle("review--expanded");
+        (e.currentTarget as HTMLElement).textContent = expanded ? "Show less ↑" : "Show more ↓";
       });
     });
   }
@@ -285,15 +437,8 @@ function populatePanel(data: any, _ratingFilter?: string) {
   // Seller
   if (data.seller && cardSeller && valSeller) {
     revealCard(cardSeller);
-    valSeller.textContent = data.seller;
+    valSeller.innerHTML = `<span class="seller-badge">${escapeHtml(data.seller)}</span>`;
   }
-}
-
-// ── Sanitize ──
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // ── Init ──
