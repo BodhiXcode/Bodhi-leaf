@@ -4,11 +4,12 @@
   "description": "Your Adaptive Commerce Copilot",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/background.ts src/content.ts src/sidepanel.ts --bundle --outdir=dist --platform=browser",
-  "watch": "esbuild src/background.ts src/content.ts src/sidepanel.ts --bundle --outdir=dist --platform=browser --watch"
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "clean": "rm -rf dist"
   },
   "private": "true",
-  "author": "SMIL THAKUR",
+  "author": "Smil Thakur, Agnibha Sarkar",
   "license": "UNLICENSED",
   "devDependencies": {
     "chrome-types": "^0.1.417",
