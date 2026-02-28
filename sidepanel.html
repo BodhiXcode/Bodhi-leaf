@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bodhi Leaf — Commerce Copilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/sidepanel.css">
+</head>
+
+<body>
+    <div id="container">
+        <!-- Header -->
+        <header id="header">
+            <div class="header-brand">
+                <span class="header-icon">🍃</span>
+                <div>
+                    <h1 class="header-title">Bodhi Leaf</h1>
+                    <p class="header-sub">Commerce Copilot</p>
+                </div>
+            </div>
+            <button id="lbtn">
+                <span class="btn-icon">↻</span>
+                Scan Page
+            </button>
+        </header>
+
+        <!-- Status -->
+        <div id="status">Open a product page and tap <strong>Scan Page</strong> to begin.</div>
+
+        <!-- Skeleton loader -->
+        <div id="skeleton" style="display:none">
+            <div class="skel-card">
+                <div class="skel-line skel-line--title"></div>
+                <div class="skel-line skel-line--body"></div>
+                <div class="skel-line skel-line--body skel-line--short"></div>
+            </div>
+            <div class="skel-card">
+                <div class="skel-line skel-line--title"></div>
+                <div class="skel-line skel-line--body"></div>
+            </div>
+            <div class="skel-card">
+                <div class="skel-line skel-line--title"></div>
+                <div class="skel-line skel-line--body"></div>
+                <div class="skel-line skel-line--body skel-line--short"></div>
+                <div class="skel-line skel-line--body"></div>
+            </div>
+        </div>
+
+        <!-- Data cards -->
+        <section id="data-cards">
+            <!-- Product image -->
+            <div class="card" id="card-image" style="display:none">
+                <img id="val-image" class="product-image" src="" alt="Product" />
+            </div>
+
+            <!-- Title & brand -->
+            <div class="card" id="card-title" style="display:none">
+                <div class="card-label">Product</div>
+                <div class="card-value card-value--title" id="val-title"></div>
+                <div class="card-meta" id="val-brand"></div>
+            </div>
+
+            <!-- Price block -->
+            <div class="card" id="card-price" style="display:none">
+                <div class="card-label">Price</div>
+                <div class="price-row">
+                    <span class="card-value card-value--price" id="val-price"></span>
+                    <span class="price-mrp" id="val-mrp"></span>
+                    <span class="price-savings" id="val-savings"></span>
+                </div>
+                <div class="card-meta" id="val-deal"></div>
+                <div class="card-meta" id="val-coupon"></div>
+                <div class="card-meta" id="val-emi"></div>
+            </div>
+
+            <!-- Availability & delivery -->
+            <div class="card" id="card-availability" style="display:none">
+                <div class="card-label">Availability</div>
+                <div class="card-value" id="val-availability"></div>
+                <div class="card-meta" id="val-delivery"></div>
+                <div class="card-meta" id="val-fastest-delivery"></div>
+            </div>
+
+            <!-- Features -->
+            <div class="card" id="card-features" style="display:none">
+                <div class="card-label">Key Features</div>
+                <ul class="feature-list" id="val-features"></ul>
+            </div>
+
+            <!-- Ratings -->
+            <div class="card" id="card-rating" style="display:none">
+                <div class="card-label">Ratings</div>
+                <div class="rating-hero">
+                    <span class="rating-big" id="val-rating-value"></span>
+                    <span class="rating-count" id="val-rating-count"></span>
+                </div>
+                <div class="rating-filters" id="rating-filters"></div>
+            </div>
+
+            <!-- Reviews -->
+            <div class="card" id="card-reviews" style="display:none">
+                <div class="card-label">Customer Reviews</div>
+                <div class="reviews-list" id="val-reviews"></div>
+            </div>
+
+            <!-- Technical details -->
+            <div class="card" id="card-specs" style="display:none">
+                <div class="card-label">Technical Details</div>
+                <table class="specs-table" id="val-specs"></table>
+            </div>
+
+            <!-- Seller info -->
+            <div class="card" id="card-seller" style="display:none">
+                <div class="card-label">Sold by</div>
+                <div class="card-value" id="val-seller"></div>
+            </div>
+        </section>
+    </div>
+    <script src="dist/sidepanel.js"></script>
+</body>
+
+</html>
