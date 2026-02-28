@@ -1,18 +1,18 @@
 {
     "$schema": "https://json.schemastore.org/chrome-manifest.json",
     "name": "Bodhi-leaf:ACC",
-    "description": "You Adaptive Commerce Copilot",
+    "description": "Your Adaptive Commerce Copilot",
     "version": "1.0",
     "manifest_version": 3,
     "action": {
         "default_icon": {
-            "16": "bodhix.jpg",
-            "48": "bodhix.jpg",
-            "128": "bodhix.jpg"
+            "16": "icons/bodhix.jpg",
+            "48": "icons/bodhix.jpg",
+            "128": "icons/bodhix.jpg"
         }
     },
     "background": {
-        "service_worker": "dist/background.js"
+        "service_worker": "background/service-worker.js"
     },
     "content_scripts": [
         {
@@ -20,7 +20,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "dist/content.js"
+                "content/content-script.js"
             ]
         }
     ],

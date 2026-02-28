@@ -1,4 +1,4 @@
-import { SELECTORS } from "./selectors";
+import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
 
 // ── DOM refs ──
