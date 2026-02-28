@@ -22,12 +22,31 @@
 | BUG-10 | Portal wait too long (3.5s) | Reduced `PORTAL_MIN_DISPLAY_MS` from 3500 to 2000 for snappier UX |
 | BUG-11 | Side panel content clipped on left (header, specs table, all cards) | Root cause: header `margin: 0 -16px` caused horizontal overflow in narrow side panels. Fixed with `overflow-x: hidden` on html/body/container, `table-layout: fixed` on specs table, `overflow: hidden` + `min-width: 0` on cards, `word-wrap: break-word` on text cells |
 
+### Zen Mode Feature (new)
+
+| Component | Description |
+|---|---|
+| **Zen Mode button** | Purple gradient button in the side panel header. Disabled until scan completes. |
+| **Overlay** | Floating, draggable, dark-themed panel injected onto the Amazon page via `chrome.scripting.executeScript`. Includes backdrop dimming with blur. |
+| **Product summary** | Compact card with image, title, brand, stars, price, and savings. |
+| **Text-to-Speech** | Browser-native `SpeechSynthesis` API. Play/Pause/Stop controls, speed selector (0.75x–2x), progress bar. Reads a generated script covering product summary, deal score, pros/cons, and key features. |
+| **AI Insights** | Deal Score (0–10) rendered as an animated SVG ring. Calculated from rating, savings %, review volume, deals/coupons, and availability. Verdict text explains the score. |
+| **Pros & Cons** | Extracted from review text using sentiment keyword analysis (~30 positive, ~30 negative signal words). Top 5 of each displayed with color-coded indicators. |
+| **Quick Specs** | Top 6 specs selected by priority matching (brand, display, processor, RAM, etc.) displayed in a 2-column grid. |
+| **Minimize/Close** | Minimize collapses to header only. Close fades out with backdrop. Clicking backdrop also closes. |
+| **Drag** | Header is drag-handle; panel can be repositioned anywhere on screen. |
+
+**New files:**
+- `src/zen/zen-insights.ts` — Pure-function module: `generateInsights(data)` → pros/cons, deal score, summary, TTS script, quick specs
+- `src/zen/zen-mode.ts` — Overlay injection API: `showZenMode(tabId, data, insights)` / `hideZenMode(tabId)`. Contains CSS + DOM builder + TTS + drag logic.
+
 ### UI Enhancements (all applied)
 
 **Header:**
 - Sticky positioning with glassmorphism (`backdrop-filter: blur(20px) saturate(180%)`)
 - Accent-colored "COMMERCE COPILOT" subtitle
 - Scan button redesigned with gradient (`linear-gradient(135deg, accent, #00c4aa)`), glow shadow, and uppercase text
+- Zen Mode button with purple gradient, disabled until scan completes
 - Spinning icon animation during scan
 
 **Cards:**

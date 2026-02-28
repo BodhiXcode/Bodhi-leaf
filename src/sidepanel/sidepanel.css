@@ -115,35 +115,42 @@ body {
   opacity: 0.8;
 }
 
-/* ═══════════════ Button ═══════════════ */
+/* ═══════════════ Header Actions ═══════════════ */
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ═══════════════ Scan Button ═══════════════ */
 #lbtn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   background: linear-gradient(135deg, var(--accent) 0%, #00c4aa 100%);
   color: #050508;
   border: none;
   border-radius: 100px;
-  padding: 9px 20px;
+  padding: 8px 16px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
-  box-shadow: 0 2px 12px rgba(0, 230, 200, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 230, 200, 0.25);
   text-transform: uppercase;
 }
 
 #lbtn:hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 20px rgba(0, 230, 200, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 230, 200, 0.35);
 }
 
 #lbtn:active {
   transform: translateY(0) scale(0.98);
-  box-shadow: 0 1px 8px rgba(0, 230, 200, 0.2);
 }
 
 #lbtn.scanning {
@@ -156,7 +163,7 @@ body {
 }
 
 .btn-icon {
-  font-size: 14px;
+  font-size: 13px;
   display: inline-block;
   transition: transform 0.4s ease;
 }
@@ -168,6 +175,47 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ═══════════════ Zen Mode Button ═══════════════ */
+#zen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #6c5ce7 0%, #a855f7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 100px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(108, 92, 231, 0.3);
+  text-transform: uppercase;
+}
+
+#zen-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+}
+
+#zen-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+#zen-btn.zen-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.zen-icon {
+  font-size: 12px;
+  display: inline-block;
 }
 
 /* ═══════════════ Status ═══════════════ */

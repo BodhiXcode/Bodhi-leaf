@@ -1,8 +1,11 @@
 import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
+import { showZenMode } from "../zen/zen-mode";
+import { generateInsights } from "../zen/zen-insights";
 
 // ── DOM refs ──
 const loadBtn = document.getElementById("lbtn");
+const zenBtn = document.getElementById("zen-btn");
 const status = document.getElementById("status");
 const skeleton = document.getElementById("skeleton");
 const container = document.getElementById("container");
@@ -46,6 +49,10 @@ const MAX_FEATURES = 10;
 const REVIEW_TRUNCATE_LENGTH = 200;
 const EMI_MAX_LENGTH = 80;
 const STAGGER_DELAY = 0.07;
+
+// ── State ──
+let lastScanData: any = null;
+let lastScanTabId: number | null = null;
 
 // ── Helpers ──
 const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardReviews, cardSpecs, cardSeller];
@@ -264,9 +271,15 @@ function requestPageData(ratingFilter?: string) {
         setScanning(false);
 
         if (results && results[0]?.result) {
+          lastScanData = results[0].result;
+          lastScanTabId = tabId;
           populatePanel(results[0].result, ratingFilter);
+          setZenEnabled(true);
           container?.scrollTo({ top: 0, behavior: "smooth" });
         } else {
+          lastScanData = null;
+          lastScanTabId = null;
+          setZenEnabled(false);
           showStatus('<span class="status-icon">🔍</span>No product data found on this page.');
         }
       }, remaining);
@@ -441,7 +454,29 @@ function populatePanel(data: any, _ratingFilter?: string) {
   }
 }
 
+// ── Zen Mode ──
+function setZenEnabled(enabled: boolean) {
+  if (!zenBtn) return;
+  if (enabled) {
+    zenBtn.classList.remove("zen-disabled");
+    zenBtn.removeAttribute("aria-disabled");
+  } else {
+    zenBtn.classList.add("zen-disabled");
+    zenBtn.setAttribute("aria-disabled", "true");
+  }
+}
+
+function activateZenMode() {
+  if (!lastScanData || !lastScanTabId) return;
+  const insights = generateInsights(lastScanData);
+  showZenMode(lastScanTabId, lastScanData, insights);
+}
+
 // ── Init ──
 loadBtn?.addEventListener("click", () => {
   requestPageData();
+});
+
+zenBtn?.addEventListener("click", () => {
+  activateZenMode();
 });
