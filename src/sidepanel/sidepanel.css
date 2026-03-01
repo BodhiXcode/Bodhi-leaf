@@ -179,6 +179,33 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* ═══════════════ Close Button ═══════════════ */
+#close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+#close-btn:hover {
+  background: rgba(255, 69, 58, 0.15);
+  color: #ff453a;
+}
+
+#close-btn:active {
+  transform: scale(0.92);
+}
+
 /* ═══════════════ Zen Mode Button ═══════════════ */
 #zen-btn {
   display: inline-flex;
@@ -207,6 +234,22 @@ body {
 
 #zen-btn:active {
   transform: translateY(0) scale(0.98);
+}
+
+#zen-btn.zen-active {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  box-shadow: 0 2px 16px rgba(168, 85, 247, 0.45);
+  animation: zen-pulse 2s ease-in-out infinite;
+}
+
+#zen-btn.zen-active .zen-icon::after {
+  content: ' ✕';
+  font-size: 9px;
+}
+
+@keyframes zen-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(168, 85, 247, 0.35); }
+  50% { box-shadow: 0 2px 20px rgba(168, 85, 247, 0.55); }
 }
 
 #zen-btn.zen-disabled {

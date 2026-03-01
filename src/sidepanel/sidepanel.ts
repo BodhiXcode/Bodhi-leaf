@@ -1,11 +1,12 @@
 import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
-import { showZenMode } from "../zen/zen-mode";
+import { showZenMode, hideZenMode } from "../zen/zen-mode";
 import { generateInsights } from "../zen/zen-insights";
 
 // ── DOM refs ──
 const loadBtn = document.getElementById("lbtn");
 const zenBtn = document.getElementById("zen-btn");
+const closeBtn = document.getElementById("close-btn");
 const status = document.getElementById("status");
 const skeleton = document.getElementById("skeleton");
 const container = document.getElementById("container");
@@ -503,6 +504,8 @@ function populatePanel(data: any, _ratingFilter?: string) {
 }
 
 // ── Zen Mode ──
+let zenActive = false;
+
 function setZenEnabled(enabled: boolean) {
   if (!zenBtn) return;
   if (enabled) {
@@ -514,10 +517,18 @@ function setZenEnabled(enabled: boolean) {
   }
 }
 
-function activateZenMode() {
+function toggleZenMode() {
   if (!lastScanData || !lastScanTabId) return;
-  const insights = generateInsights(lastScanData);
-  showZenMode(lastScanTabId, lastScanData, insights);
+  if (zenActive) {
+    hideZenMode(lastScanTabId);
+    zenActive = false;
+    zenBtn?.classList.remove("zen-active");
+  } else {
+    const insights = generateInsights(lastScanData);
+    showZenMode(lastScanTabId, lastScanData, insights);
+    zenActive = true;
+    zenBtn?.classList.add("zen-active");
+  }
 }
 
 // ── Init ──
@@ -526,5 +537,9 @@ loadBtn?.addEventListener("click", () => {
 });
 
 zenBtn?.addEventListener("click", () => {
-  activateZenMode();
+  toggleZenMode();
+});
+
+closeBtn?.addEventListener("click", () => {
+  window.close();
 });
