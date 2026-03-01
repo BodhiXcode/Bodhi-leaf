@@ -8,6 +8,8 @@ export interface ZenInsights {
   ttsScript: string;
 }
 
+// ── Sentiment signals (broad coverage) ──
+
 const POSITIVE_SIGNALS = [
   "great", "excellent", "good", "love", "amazing", "perfect", "best",
   "quality", "worth", "recommend", "fantastic", "awesome", "solid",
@@ -15,6 +17,13 @@ const POSITIVE_SIGNALS = [
   "comfortable", "sturdy", "impressive", "reliable", "superb",
   "brilliant", "wonderful", "durable", "happy", "pleased",
   "value for money", "bang for the buck", "no complaints",
+  "nice", "decent", "like", "enjoy", "satisfied", "handy",
+  "works well", "easy to use", "easy to set up", "well built",
+  "well made", "looks great", "works great", "highly recommend",
+  "must buy", "must have", "no issues", "no problems",
+  "long lasting", "lightweight", "compact", "powerful",
+  "clear", "sharp", "vibrant", "responsive", "intuitive",
+  "elegant", "sleek", "stylish", "convenient", "efficient",
 ];
 
 const NEGATIVE_SIGNALS = [
@@ -23,13 +32,45 @@ const NEGATIVE_SIGNALS = [
   "flimsy", "overpriced", "noisy", "dim", "heavy", "fragile",
   "uncomfortable", "unreliable", "difficult", "lacking", "mediocre",
   "not worth", "regret", "return", "refund", "damage",
+  "does not work", "doesn't work", "stopped working", "fell apart",
+  "low quality", "not as described", "misleading", "fake", "scam",
+  "too small", "too big", "not fit", "doesn't fit", "scratched",
+  "not durable", "battery drains", "heats up", "overheating",
+  "laggy", "freezes", "crashes", "glitch", "bug", "error",
 ];
+
+// ── Feature-based insight patterns ──
+
+const FEATURE_PRO_PATTERNS: [RegExp, string][] = [
+  [/warranty|guarantee/i, "Comes with warranty/guarantee"],
+  [/water.?(?:proof|resist)/i, "Water resistant design"],
+  [/dust.?(?:proof|resist)/i, "Dust resistant"],
+  [/(?:fast|quick|rapid)\s*charg/i, "Supports fast charging"],
+  [/type.?c|usb.?c/i, "USB-C connectivity"],
+  [/wireless|bluetooth|wi-?fi/i, "Wireless connectivity"],
+  [/noise\s*cancel/i, "Noise cancellation feature"],
+  [/long\s*(?:battery|lasting|life)/i, "Long battery life"],
+  [/lightweight|ultra.?light/i, "Lightweight build"],
+  [/portable|compact|travel/i, "Portable and compact"],
+  [/(?:hd|4k|1080p|full\s*hd|qhd|amoled|oled|retina)/i, "High-quality display"],
+  [/ergonomic/i, "Ergonomic design"],
+  [/anti.?(?:slip|skid|bacterial|microbial)/i, "Safety/hygiene features"],
+  [/eco.?friendly|sustainable|recyclable/i, "Eco-friendly materials"],
+  [/(?:memory|expandable|micro\s*sd)/i, "Expandable storage support"],
+  [/(?:dual|stereo)\s*speaker/i, "Stereo/dual speaker audio"],
+  [/(?:touch\s*screen|touchscreen)/i, "Touchscreen interface"],
+  [/(?:adjustable|customizable|programmable)/i, "Adjustable/customizable"],
+  [/(?:stainless|steel|aluminum|aluminium|metal)\s*(?:body|build|frame|chassis)/i, "Premium metal build"],
+  [/(?:led|backlit|backlight|rgb)/i, "LED/backlit features"],
+];
+
+// ── Sentence extraction (more forgiving) ──
 
 function extractSentences(text: string): string[] {
   return text
     .split(/[.!?\n]+/)
     .map(s => s.trim())
-    .filter(s => s.length > 15 && s.length < 200);
+    .filter(s => s.length > 8 && s.length < 300);
 }
 
 function scoreSentiment(sentence: string, signals: string[]): number {
@@ -37,48 +78,169 @@ function scoreSentiment(sentence: string, signals: string[]): number {
   return signals.reduce((score, word) => score + (lower.includes(word) ? 1 : 0), 0);
 }
 
-function extractProsAndCons(reviews: any[]): { pros: string[]; cons: string[] } {
-  const prosMap = new Map<string, number>();
-  const consMap = new Map<string, number>();
+// ── Core: extract pros and cons from multiple data sources ──
 
-  for (const review of reviews) {
-    const text = `${review.title || ""} ${review.body || ""}`;
-    const sentences = extractSentences(text);
+function extractProsAndCons(data: any): { pros: string[]; cons: string[] } {
+  const pros: string[] = [];
+  const cons: string[] = [];
 
-    for (const sentence of sentences) {
-      const posScore = scoreSentiment(sentence, POSITIVE_SIGNALS);
-      const negScore = scoreSentiment(sentence, NEGATIVE_SIGNALS);
+  // 1) Review-based extraction
+  const reviews: any[] = data.reviews || [];
+  if (reviews.length > 0) {
+    const proSentences = new Map<string, number>();
+    const conSentences = new Map<string, number>();
 
-      if (posScore > negScore && posScore >= 1) {
-        const clean = sentence.replace(/^[\s,;-]+/, "").trim();
-        const existing = prosMap.get(clean) || 0;
-        prosMap.set(clean, existing + posScore);
-      } else if (negScore > posScore && negScore >= 1) {
-        const clean = sentence.replace(/^[\s,;-]+/, "").trim();
-        const existing = consMap.get(clean) || 0;
-        consMap.set(clean, existing + negScore);
+    for (const review of reviews) {
+      const text = `${review.title || ""} ${review.body || ""}`;
+      const sentences = extractSentences(text);
+
+      for (const sentence of sentences) {
+        const posScore = scoreSentiment(sentence, POSITIVE_SIGNALS);
+        const negScore = scoreSentiment(sentence, NEGATIVE_SIGNALS);
+
+        if (posScore > negScore && posScore >= 1) {
+          const clean = sentence.replace(/^[\s,;-]+/, "").trim();
+          if (clean.length > 8) {
+            proSentences.set(clean, (proSentences.get(clean) || 0) + posScore);
+          }
+        } else if (negScore > posScore && negScore >= 1) {
+          const clean = sentence.replace(/^[\s,;-]+/, "").trim();
+          if (clean.length > 8) {
+            conSentences.set(clean, (conSentences.get(clean) || 0) + negScore);
+          }
+        }
       }
+
+      // Also check review titles directly (they're short but sentiment-rich)
+      const title = (review.title || "").trim();
+      if (title.length >= 3) {
+        const titlePos = scoreSentiment(title, POSITIVE_SIGNALS);
+        const titleNeg = scoreSentiment(title, NEGATIVE_SIGNALS);
+        if (titlePos > titleNeg && titlePos >= 1) {
+          proSentences.set(title, (proSentences.get(title) || 0) + titlePos + 1);
+        } else if (titleNeg > titlePos && titleNeg >= 1) {
+          conSentences.set(title, (conSentences.get(title) || 0) + titleNeg + 1);
+        }
+      }
+    }
+
+    const sortedPros = [...proSentences.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([text]) => truncateInsight(text));
+
+    const sortedCons = [...conSentences.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([text]) => truncateInsight(text));
+
+    pros.push(...sortedPros);
+    cons.push(...sortedCons);
+  }
+
+  // 2) Feature-based insights (augment pros with product feature bullets)
+  const features: string[] = data.features || [];
+  for (const feature of features) {
+    for (const [pattern, label] of FEATURE_PRO_PATTERNS) {
+      if (pattern.test(feature) && !pros.some(p => p === label)) {
+        pros.push(label);
+        break;
+      }
+    }
+    if (pros.length >= 6) break;
+  }
+
+  // 3) Rating-based insights
+  const ratingMatch = data.ratingValue?.match(/([\d.]+)/);
+  const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+  const countMatch = data.ratingCount?.match(/([\d,]+)/);
+  const reviewCount = countMatch ? parseInt(countMatch[1].replace(/,/g, "")) : 0;
+
+  if (rating >= 4.0 && reviewCount >= 100 && !pros.some(p => /rating|rated|star/i.test(p))) {
+    pros.push(`Highly rated at ${rating}/5 across ${reviewCount.toLocaleString()} reviews`);
+  } else if (rating < 3.5 && rating > 0 && !cons.some(c => /rating|rated|star/i.test(c))) {
+    cons.push(`Below-average rating of ${rating}/5`);
+  }
+
+  // Rating histogram analysis
+  if (data.ratingBtns?.length > 0) {
+    const histogram: { stars: number; pct: number }[] = data.ratingBtns
+      .map((btn: any) => {
+        const labelMatch = btn.label?.match(/(\d)\s*star/i);
+        const pctMatch = btn.pct?.match(/(\d+)/);
+        return labelMatch && pctMatch ? { stars: parseInt(labelMatch[1]), pct: parseInt(pctMatch[1]) } : null;
+      })
+      .filter(Boolean);
+
+    const fiveStar = histogram.find((h: any) => h.stars === 5);
+    const oneStar = histogram.find((h: any) => h.stars === 1);
+
+    if (fiveStar && fiveStar.pct >= 60 && !pros.some(p => /majority|5-star/i.test(p))) {
+      pros.push(`${fiveStar.pct}% of buyers gave 5 stars`);
+    }
+    if (oneStar && oneStar.pct >= 20 && !cons.some(c => /1-star|one star/i.test(c))) {
+      cons.push(`${oneStar.pct}% of buyers gave only 1 star`);
     }
   }
 
-  const pros = [...prosMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([text]) => text);
+  // 4) Price/deal-based insights
+  const savingsMatch = data.savings?.match(/(\d+)/);
+  const savingsPct = savingsMatch ? parseInt(savingsMatch[1]) : 0;
+  if (savingsPct >= 30 && !pros.some(p => /discount|saving|off/i.test(p))) {
+    pros.push(`${savingsPct}% discount from MRP`);
+  }
+  if (data.coupon && !pros.some(p => /coupon/i.test(p))) {
+    pros.push("Additional coupon available");
+  }
+  if (data.dealBadge && !pros.some(p => /deal/i.test(p))) {
+    pros.push("Currently has an active deal badge");
+  }
 
-  const cons = [...consMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([text]) => text);
+  // 5) Availability-based insights
+  const avail = (data.availability || "").toLowerCase();
+  if (avail.includes("out of stock") || avail.includes("unavailable")) {
+    cons.push("Currently out of stock");
+  } else if (avail.includes("only") && avail.match(/only\s*\d+/i)) {
+    cons.push("Limited stock remaining");
+  }
 
-  return { pros, cons };
+  // 6) Seller insight
+  if (data.seller) {
+    const sellerLower = data.seller.toLowerCase();
+    if (sellerLower.includes("amazon") || sellerLower.includes("cloudtail") || sellerLower.includes("appario")) {
+      pros.push("Sold by Amazon-affiliated seller");
+    }
+  }
+
+  return {
+    pros: dedupe(pros).slice(0, 6),
+    cons: dedupe(cons).slice(0, 5),
+  };
 }
+
+function truncateInsight(text: string): string {
+  if (text.length <= 100) return text;
+  const cut = text.substring(0, 100);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 50 ? cut.substring(0, lastSpace) : cut) + "…";
+}
+
+function dedupe(items: string[]): string[] {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    const key = item.toLowerCase().replace(/\s+/g, " ").trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ── Deal score ──
 
 function calculateDealScore(data: any): { score: number; verdict: string } {
   let score = 0;
   const factors: string[] = [];
 
-  // Rating (max 3 points)
   const ratingMatch = data.ratingValue?.match(/([\d.]+)/);
   const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
   if (rating > 0) {
@@ -89,7 +251,6 @@ function calculateDealScore(data: any): { score: number; verdict: string } {
     else factors.push(`low ${rating}★ rating`);
   }
 
-  // Savings (max 3 points)
   const savingsMatch = data.savings?.match(/(\d+)/);
   const savingsPct = savingsMatch ? parseInt(savingsMatch[1]) : 0;
   if (savingsPct > 0) {
@@ -98,18 +259,15 @@ function calculateDealScore(data: any): { score: number; verdict: string } {
     factors.push(`${savingsPct}% savings`);
   }
 
-  // Review volume (max 1.5 points)
   const countMatch = data.ratingCount?.match(/([\d,]+)/);
   const reviewCount = countMatch ? parseInt(countMatch[1].replace(/,/g, "")) : 0;
-  if (reviewCount > 1000) { score += 1.5; factors.push(`${reviewCount.toLocaleString()}+ reviews`); }
+  if (reviewCount > 1000) { score += 1.5; factors.push(`${reviewCount.toLocaleString()} reviews`); }
   else if (reviewCount > 200) { score += 1; factors.push(`${reviewCount} reviews`); }
   else if (reviewCount > 50) { score += 0.5; }
 
-  // Coupon/deal bonus (max 1 point)
   if (data.dealBadge) { score += 0.5; factors.push("active deal"); }
   if (data.coupon) { score += 0.5; factors.push("coupon available"); }
 
-  // Availability (max 1 point)
   const avail = (data.availability || "").toLowerCase();
   if (avail.includes("in stock") || avail.includes("available")) {
     score += 1;
@@ -128,6 +286,8 @@ function calculateDealScore(data: any): { score: number; verdict: string } {
 
   return { score, verdict };
 }
+
+// ── Summary and TTS ──
 
 function buildSummary(data: any): string {
   const parts: string[] = [];
@@ -197,8 +357,10 @@ function pickQuickSpecs(data: any): { label: string; value: string }[] {
     .map(({ label, value }: any) => ({ label, value }));
 }
 
+// ── Main entry point ──
+
 export function generateInsights(data: any): ZenInsights {
-  const { pros, cons } = extractProsAndCons(data.reviews || []);
+  const { pros, cons } = extractProsAndCons(data);
   const { score: dealScore, verdict: dealVerdict } = calculateDealScore(data);
   const summary = buildSummary(data);
   const quickSpecs = pickQuickSpecs(data);

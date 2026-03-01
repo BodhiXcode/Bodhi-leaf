@@ -16,6 +16,7 @@ const cardPrice = document.getElementById("card-price");
 const cardAvailability = document.getElementById("card-availability");
 const cardFeatures = document.getElementById("card-features");
 const cardRating = document.getElementById("card-rating");
+const cardInsights = document.getElementById("card-insights");
 const cardReviews = document.getElementById("card-reviews");
 const cardSpecs = document.getElementById("card-specs");
 const cardSeller = document.getElementById("card-seller");
@@ -55,7 +56,11 @@ let lastScanData: any = null;
 let lastScanTabId: number | null = null;
 
 // ── Helpers ──
-const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardReviews, cardSpecs, cardSeller];
+const insightsDealScore = document.getElementById("insights-deal-score");
+const insightsProsList = document.getElementById("insights-pros-list");
+const insightsConsList = document.getElementById("insights-cons-list");
+
+const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardInsights, cardReviews, cardSpecs, cardSeller];
 
 function escapeHtml(str: string): string {
   const div = document.createElement("div");
@@ -122,6 +127,9 @@ function clearPanel() {
   if (valFeatures) valFeatures.innerHTML = "";
   if (ratingHistogram) ratingHistogram.innerHTML = "";
   if (ratingFilters) ratingFilters.innerHTML = "";
+  if (insightsDealScore) insightsDealScore.innerHTML = "";
+  if (insightsProsList) insightsProsList.innerHTML = "";
+  if (insightsConsList) insightsConsList.innerHTML = "";
   if (valReviews) valReviews.innerHTML = "";
   if (valSpecs) valSpecs.innerHTML = "";
   if (valRatingStars) valRatingStars.innerHTML = "";
@@ -182,22 +190,27 @@ function requestPageData(ratingFilter?: string) {
       target: { tabId },
       world: "MAIN",
       func: function (selectors: any, ratingFilter: string | undefined) {
+        const cleanText = (el: Element): string => {
+          const clone = el.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll("script, style, noscript, template").forEach(s => s.remove());
+          return clone.textContent?.trim().replace(/\s+/g, " ") || "";
+        };
         const getText = (sel: string) => {
           const el = document.querySelector(sel);
-          return el ? (el.textContent?.trim() || "") : "";
+          return el ? cleanText(el) : "";
         };
         const getAttr = (sel: string, attr: string) => {
           const el = document.querySelector(sel);
           return el ? (el.getAttribute(attr) || "") : "";
         };
         const getList = (sel: string) => {
-          return Array.from(document.querySelectorAll(sel)).map(e => e.textContent?.trim() || "").filter(Boolean);
+          return Array.from(document.querySelectorAll(sel)).map(e => cleanText(e)).filter(Boolean);
         };
         const getTableRows = (sel: string) => {
           return Array.from(document.querySelectorAll(sel)).map(tr => {
             const cells = tr.querySelectorAll("th, td");
             if (cells.length >= 2) {
-              return { label: cells[0].textContent?.trim() || "", value: cells[1].textContent?.trim() || "" };
+              return { label: cleanText(cells[0]), value: cleanText(cells[1]) };
             }
             return null;
           }).filter(Boolean);
@@ -224,10 +237,10 @@ function requestPageData(ratingFilter?: string) {
           ratingBtns: Array.from(document.querySelectorAll(s.ratingFilterBtns)).map((el: Element) => {
             if (el instanceof HTMLElement) {
               const cells = el.querySelectorAll("td");
-              const label = cells[0]?.textContent?.trim() || "";
-              const pct = cells[2]?.textContent?.trim() || cells[1]?.textContent?.trim() || "";
+              const label = cells[0] ? cleanText(cells[0]) : "";
+              const pct = cells[2] ? cleanText(cells[2]) : (cells[1] ? cleanText(cells[1]) : "");
               return {
-                text: el.textContent?.trim() || "",
+                text: cleanText(el),
                 label: label,
                 pct: pct,
                 selected: el.classList.contains("a-histogram-row-selected") || false
@@ -242,11 +255,11 @@ function requestPageData(ratingFilter?: string) {
             const starsEl = rev.querySelector(s.reviewStars);
             const dateEl = rev.querySelector(s.reviewDate);
             return {
-              title: titleEl?.textContent?.trim() || "",
-              body: bodyEl?.textContent?.trim() || "",
-              author: nameEl?.textContent?.trim() || "",
-              stars: starsEl?.textContent?.trim() || "",
-              date: dateEl?.textContent?.trim() || "",
+              title: titleEl ? cleanText(titleEl) : "",
+              body: bodyEl ? cleanText(bodyEl) : "",
+              author: nameEl ? cleanText(nameEl) : "",
+              stars: starsEl ? cleanText(starsEl) : "",
+              date: dateEl ? cleanText(dateEl) : "",
             };
           }),
           specs: getTableRows(s.technicalDetails),
@@ -362,7 +375,10 @@ function populatePanel(data: any, _ratingFilter?: string) {
     const numRating = parseRatingNumber(data.ratingValue);
     if (valRatingValue) valRatingValue.textContent = numRating.toFixed(1);
     if (valRatingStars) valRatingStars.innerHTML = renderStars(numRating);
-    if (valRatingCount) valRatingCount.textContent = data.ratingCount || "";
+    if (valRatingCount) {
+      const countMatch = (data.ratingCount || "").match(/([\d,]+)\s*(?:ratings?|reviews?|global ratings?)/i);
+      valRatingCount.textContent = countMatch ? `${countMatch[1]} ratings` : "";
+    }
 
     // Histogram bars
     if (data.ratingBtns?.length && ratingHistogram) {
@@ -408,6 +424,38 @@ function populatePanel(data: any, _ratingFilter?: string) {
           requestPageData(filter);
         });
       });
+    }
+  }
+
+  // AI Insights
+  if (cardInsights) {
+    const insights = generateInsights(data);
+    if (insights.pros.length > 0 || insights.cons.length > 0 || insights.dealScore > 0) {
+      revealCard(cardInsights);
+
+      if (insightsDealScore) {
+        const scoreColor = insights.dealScore >= 7 ? "#34c759"
+          : insights.dealScore >= 4 ? "#f5a623" : "#ff453a";
+        insightsDealScore.innerHTML = `
+          <div class="deal-score-badge" style="border-color: ${scoreColor}20">
+            <span class="deal-score-number" style="color: ${scoreColor}">${insights.dealScore}</span>
+            <span class="deal-score-label">/ 10</span>
+          </div>
+          <span class="deal-score-verdict">${escapeHtml(insights.dealVerdict)}</span>
+        `;
+      }
+
+      if (insightsProsList) {
+        insightsProsList.innerHTML = insights.pros.length > 0
+          ? insights.pros.map(p => `<li>${escapeHtml(p)}</li>`).join("")
+          : `<li class="insight-empty">No strong positives detected</li>`;
+      }
+
+      if (insightsConsList) {
+        insightsConsList.innerHTML = insights.cons.length > 0
+          ? insights.cons.map(c => `<li>${escapeHtml(c)}</li>`).join("")
+          : `<li class="insight-empty">No significant negatives detected</li>`;
+      }
     }
   }
 

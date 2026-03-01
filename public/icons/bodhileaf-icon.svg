@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a10"/>
+      <stop offset="100%" stop-color="#111118"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#00e6c8"/>
+      <stop offset="50%" stop-color="#00c4aa"/>
+      <stop offset="100%" stop-color="#009e88"/>
+    </linearGradient>
+    <linearGradient id="vein" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.08)"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#bg)"/>
+  <!-- Outer glow ring -->
+  <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(0,230,200,0.08)" stroke-width="1"/>
+  <!-- Leaf shape (Bodhi leaf - heart-shaped with pointed tip) -->
+  <g transform="translate(64,62) scale(1)" filter="url(#glow)">
+    <path d="M0,-38 C18,-38 32,-28 36,-10 C40,8 32,26 16,36 C10,40 4,44 0,50 C-4,44 -10,40 -16,36 C-32,26 -40,8 -36,-10 C-32,-28 -18,-38 0,-38Z" fill="url(#leaf)" opacity="0.92"/>
+    <!-- Central vein -->
+    <line x1="0" y1="-34" x2="0" y2="48" stroke="url(#vein)" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Side veins -->
+    <path d="M0,-20 C8,-16 14,-10 18,-2" fill="none" stroke="url(#vein)" stroke-width="1" stroke-linecap="round"/>
+    <path d="M0,-20 C-8,-16 -14,-10 -18,-2" fill="none" stroke="url(#vein)" stroke-width="1" stroke-linecap="round"/>
+    <path d="M0,-6 C10,0 18,8 22,18" fill="none" stroke="url(#vein)" stroke-width="1" stroke-linecap="round"/>
+    <path d="M0,-6 C-10,0 -18,8 -22,18" fill="none" stroke="url(#vein)" stroke-width="1" stroke-linecap="round"/>
+    <path d="M0,10 C8,16 12,24 14,32" fill="none" stroke="url(#vein)" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M0,10 C-8,16 -12,24 -14,32" fill="none" stroke="url(#vein)" stroke-width="0.8" stroke-linecap="round"/>
+  </g>
+  <!-- Subtle accent dot at leaf tip -->
+  <circle cx="64" cy="112" r="2" fill="#00e6c8" opacity="0.6"/>
+</svg>

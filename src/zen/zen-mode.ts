@@ -65,7 +65,12 @@ function getZenCSS(): string {
     font-weight: 700;
     letter-spacing: -0.3px;
   }
-  .bz-header-title span { font-size: 18px; }
+  .bz-header-title img {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    object-fit: contain;
+  }
   .bz-header-badge {
     font-size: 9px;
     font-weight: 600;
@@ -361,7 +366,7 @@ function getZenCSS(): string {
   `;
 }
 
-function buildZenOverlay(data: any, insights: any) {
+function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
   if (document.getElementById("bodhi-zen-backdrop")) return;
 
   const esc = (s: string) => {
@@ -416,7 +421,7 @@ function buildZenOverlay(data: any, insights: any) {
     <div id="bodhi-zen-panel">
       <div class="bz-header">
         <div class="bz-header-title">
-          <span>🍃</span> Zen Mode
+          ${iconUrl ? `<img src="${esc(iconUrl)}" alt="Bodhi Leaf" />` : ""} Zen Mode
           <span class="bz-header-badge">AI</span>
         </div>
         <div class="bz-header-actions">
@@ -626,6 +631,8 @@ function removeZenOverlay() {
 // ── Public API ──
 
 export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
+  const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
+
   (chrome.scripting.insertCSS as any)({
     target: { tabId },
     css: getZenCSS(),
@@ -635,7 +642,7 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
     target: { tabId },
     func: buildZenOverlay,
     world: "MAIN",
-    args: [data, insights],
+    args: [data, insights, iconUrl],
   });
 }
 

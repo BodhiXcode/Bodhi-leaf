@@ -17,7 +17,7 @@
         <!-- Header -->
         <header id="header">
             <div class="header-brand">
-                <span class="header-icon">🍃</span>
+                <img class="header-icon" src="icons/icon-48.png" alt="Bodhi Leaf" />
                 <div>
                     <h1 class="header-title">Bodhi Leaf</h1>
                     <p class="header-sub">Commerce Copilot</p>
@@ -113,6 +113,22 @@
                 </div>
                 <div class="rating-histogram" id="rating-histogram"></div>
                 <div class="rating-filters" id="rating-filters"></div>
+            </div>
+
+            <!-- AI Insights -->
+            <div class="card" id="card-insights" style="display:none">
+                <div class="card-label">AI Insights</div>
+                <div class="insights-deal-score" id="insights-deal-score"></div>
+                <div class="insights-pros-cons">
+                    <div class="insights-group insights-pros">
+                        <div class="insights-group-title insights-pro-title">Pros</div>
+                        <ul class="insights-list" id="insights-pros-list"></ul>
+                    </div>
+                    <div class="insights-group insights-cons">
+                        <div class="insights-group-title insights-con-title">Cons</div>
+                        <ul class="insights-list" id="insights-cons-list"></ul>
+                    </div>
+                </div>
             </div>
 
             <!-- Reviews -->

@@ -94,8 +94,10 @@ body {
 }
 
 .header-icon {
-  font-size: 26px;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
   filter: drop-shadow(0 0 8px rgba(0, 230, 200, 0.3));
 }
 
@@ -822,6 +824,136 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* ═══════════════ AI Insights ═══════════════ */
+#card-insights .card-label {
+  background: linear-gradient(90deg, #a78bfa, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.insights-deal-score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.deal-score-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius);
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.deal-score-number {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.deal-score-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.deal-score-verdict {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.insights-pros-cons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insights-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.insights-pro-title {
+  color: var(--green);
+}
+
+.insights-pro-title::before {
+  content: '✓';
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.insights-con-title {
+  color: var(--red, #ff453a);
+}
+
+.insights-con-title::before {
+  content: '✕';
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.insights-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.insights-list li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+
+.insights-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.insights-pros .insights-list li::before {
+  background: var(--green);
+}
+
+.insights-cons .insights-list li::before {
+  background: var(--red, #ff453a);
+  opacity: 0.7;
+}
+
+.insights-list li.insight-empty {
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+.insights-list li.insight-empty::before {
+  display: none;
 }
 
 /* ═══════════════ Seller ═══════════════ */
