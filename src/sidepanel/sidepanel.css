@@ -94,8 +94,10 @@ body {
 }
 
 .header-icon {
-  font-size: 26px;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
   filter: drop-shadow(0 0 8px rgba(0, 230, 200, 0.3));
 }
 
@@ -115,35 +117,42 @@ body {
   opacity: 0.8;
 }
 
-/* ═══════════════ Button ═══════════════ */
+/* ═══════════════ Header Actions ═══════════════ */
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ═══════════════ Scan Button ═══════════════ */
 #lbtn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   background: linear-gradient(135deg, var(--accent) 0%, #00c4aa 100%);
   color: #050508;
   border: none;
   border-radius: 100px;
-  padding: 9px 20px;
+  padding: 8px 16px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
-  box-shadow: 0 2px 12px rgba(0, 230, 200, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 230, 200, 0.25);
   text-transform: uppercase;
 }
 
 #lbtn:hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 20px rgba(0, 230, 200, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 230, 200, 0.35);
 }
 
 #lbtn:active {
   transform: translateY(0) scale(0.98);
-  box-shadow: 0 1px 8px rgba(0, 230, 200, 0.2);
 }
 
 #lbtn.scanning {
@@ -156,7 +165,7 @@ body {
 }
 
 .btn-icon {
-  font-size: 14px;
+  font-size: 13px;
   display: inline-block;
   transition: transform 0.4s ease;
 }
@@ -168,6 +177,90 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ═══════════════ Close Button ═══════════════ */
+#close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+#close-btn:hover {
+  background: rgba(255, 69, 58, 0.15);
+  color: #ff453a;
+}
+
+#close-btn:active {
+  transform: scale(0.92);
+}
+
+/* ═══════════════ Zen Mode Button ═══════════════ */
+#zen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #6c5ce7 0%, #a855f7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 100px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(108, 92, 231, 0.3);
+  text-transform: uppercase;
+}
+
+#zen-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+}
+
+#zen-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+#zen-btn.zen-active {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  box-shadow: 0 2px 16px rgba(168, 85, 247, 0.45);
+  animation: zen-pulse 2s ease-in-out infinite;
+}
+
+#zen-btn.zen-active .zen-icon::after {
+  content: ' ✕';
+  font-size: 9px;
+}
+
+@keyframes zen-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(168, 85, 247, 0.35); }
+  50% { box-shadow: 0 2px 20px rgba(168, 85, 247, 0.55); }
+}
+
+#zen-btn.zen-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.zen-icon {
+  font-size: 12px;
+  display: inline-block;
 }
 
 /* ═══════════════ Status ═══════════════ */
@@ -774,6 +867,136 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* ═══════════════ AI Insights ═══════════════ */
+#card-insights .card-label {
+  background: linear-gradient(90deg, #a78bfa, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.insights-deal-score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.deal-score-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius);
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.deal-score-number {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.deal-score-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.deal-score-verdict {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.insights-pros-cons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insights-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.insights-pro-title {
+  color: var(--green);
+}
+
+.insights-pro-title::before {
+  content: '✓';
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.insights-con-title {
+  color: var(--red, #ff453a);
+}
+
+.insights-con-title::before {
+  content: '✕';
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.insights-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.insights-list li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+
+.insights-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.insights-pros .insights-list li::before {
+  background: var(--green);
+}
+
+.insights-cons .insights-list li::before {
+  background: var(--red, #ff453a);
+  opacity: 0.7;
+}
+
+.insights-list li.insight-empty {
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+.insights-list li.insight-empty::before {
+  display: none;
 }
 
 /* ═══════════════ Seller ═══════════════ */

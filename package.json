@@ -14,6 +14,7 @@
   "devDependencies": {
     "chrome-types": "^0.1.417",
     "esbuild": "^0.27.3",
+    "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   }
 }
