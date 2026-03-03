@@ -92,7 +92,7 @@ Bodhi-leaf/
 ### 1. Clone & Setup
 
 ```bash
-git clone <repo-url> && cd Bodhi-leaf
+git clone git@github.com:BodhiXcode/Bodhi-leaf.git && cd Bodhi-leaf
 ./scripts/setup.sh
 ```
 
