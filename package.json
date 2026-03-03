@@ -12,7 +12,7 @@
   "author": "Smil Thakur, Agnibha Sarkar",
   "license": "UNLICENSED",
   "devDependencies": {
-    "chrome-types": "^0.1.417",
+    "chrome-types": "^0.1.420",
     "esbuild": "^0.27.3",
     "sharp": "^0.34.5",
     "typescript": "^5.9.3"
