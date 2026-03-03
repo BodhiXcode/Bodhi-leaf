@@ -207,13 +207,13 @@ function getZenCSS(): string {
     gap: 8px;
     margin-bottom: 10px;
   }
-  .bz-tts-btn {
+  .bz-tts-toggle {
     width: 36px;
     height: 36px;
-    border: none;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.06);
-    color: #a0a0ab;
+    border: none !important;
+    border-radius: 50%;
+    background: rgba(0,230,200,0.12);
+    color: #00e6c8;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -222,34 +222,38 @@ function getZenCSS(): string {
     flex-shrink: 0;
     padding: 0;
   }
-  .bz-tts-btn svg { width: 16px; height: 16px; }
-  .bz-tts-btn:hover { background: rgba(255,255,255,0.1); }
-  .bz-tts-btn:hover svg { stroke: #f0f0f5; fill: none; }
-  .bz-tts-play:hover svg { fill: #f0f0f5; stroke: none; }
-  .bz-tts-btn.bz-playing {
-    background: rgba(0,230,200,0.15);
-  }
-  .bz-tts-btn.bz-playing svg { stroke: #00e6c8; fill: none; }
-  .bz-tts-play.bz-playing svg { fill: #00e6c8; stroke: none; }
-  .bz-tts-select {
-    flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
+  .bz-tts-toggle svg { width: 16px; height: 16px; }
+  .bz-tts-toggle .bz-icon-pause { display: none; }
+  .bz-tts-toggle .bz-icon-play { display: block; }
+  .bz-tts-toggle.bz-playing { background: rgba(0,230,200,0.2); }
+  .bz-tts-toggle.bz-playing .bz-icon-pause { display: block; }
+  .bz-tts-toggle.bz-playing .bz-icon-play { display: none; }
+  .bz-tts-toggle:hover { background: rgba(0,230,200,0.22); transform: scale(1.05); }
+  .bz-tts-stop {
+    width: 28px;
+    height: 28px;
+    border: none !important;
     border-radius: 8px;
-    color: #a0a0ab;
-    font-family: inherit;
-    font-size: 12px;
-    padding: 7px 10px;
+    background: rgba(255,255,255,0.05);
+    color: #5c5c66;
     cursor: pointer;
-    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    padding: 0;
   }
-  .bz-tts-select:focus { border-color: rgba(0,230,200,0.3); }
-  .bz-tts-select option { background: #1a1a24; }
-  .bz-tts-progress {
-    height: 3px;
-    background: rgba(255,255,255,0.04);
+  .bz-tts-stop svg { width: 12px; height: 12px; }
+  .bz-tts-stop:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
+  .bz-tts-stop:hover svg { stroke: #a0a0ab; }
+  .bz-tts-progress-inline {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
     border-radius: 2px;
     overflow: hidden;
+    position: relative;
   }
   .bz-tts-progress-fill {
     height: 100%;
@@ -258,6 +262,25 @@ function getZenCSS(): string {
     width: 0%;
     transition: width 0.3s;
   }
+  .bz-tts-speed {
+    width: auto;
+    flex: 0 0 auto;
+    background: rgba(255,255,255,0.05);
+    border: none !important;
+    border-radius: 6px;
+    color: #5c5c66;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 6px;
+    cursor: pointer;
+    outline: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: center;
+  }
+  .bz-tts-speed:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
+  .bz-tts-speed option { background: #1a1a24; color: #a0a0ab; }
 
   /* ── Deal Score ── */
   .bz-deal-score {
@@ -319,22 +342,26 @@ function getZenCSS(): string {
   .bz-pc-group-title.bz-pro { color: #34c759; }
   .bz-pc-group-title.bz-con { color: #ff453a; }
   .bz-pc-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+    list-style: none !important;
+    list-style-type: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
   .bz-pc-list li {
+    list-style: none !important;
+    list-style-type: none !important;
     font-size: 12px;
     color: #a0a0ab;
     line-height: 1.5;
-    padding-left: 14px;
+    padding-left: 14px !important;
     position: relative;
+    margin: 0 !important;
   }
   .bz-pc-list li::before {
-    content: '';
+    content: '' !important;
     position: absolute;
     left: 0;
     top: 6px;
@@ -342,6 +369,7 @@ function getZenCSS(): string {
     height: 5px;
     border-radius: 50%;
   }
+  .bz-pc-list li::marker { content: none !important; font-size: 0 !important; }
   .bz-pros .bz-pc-list li::before { background: #34c759; }
   .bz-cons .bz-pc-list li::before { background: #ff453a; opacity: 0.6; }
   .bz-no-data {
@@ -467,10 +495,13 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         <div class="bz-section">
           <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Read Aloud <span class="bz-tts-loading-label">${ttsAudioUrl ? "Ready" : "Loading voice…"}</span></div>
           <div class="bz-tts-controls">
-            <button class="bz-tts-btn bz-tts-play" title="Play"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg></button>
-            <button class="bz-tts-btn bz-tts-pause" title="Pause"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg></button>
-            <button class="bz-tts-btn bz-tts-stop" title="Stop"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
-            <select class="bz-tts-select bz-tts-speed">
+            <button class="bz-tts-toggle" title="Play / Pause">
+              <svg class="bz-icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
+              <svg class="bz-icon-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
+            <button class="bz-tts-stop" title="Stop"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+            <div class="bz-tts-progress-inline"><div class="bz-tts-progress-fill"></div></div>
+            <select class="bz-tts-speed">
               <option value="0.75">0.75×</option>
               <option value="1" selected>1×</option>
               <option value="1.25">1.25×</option>
@@ -478,7 +509,6 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
               <option value="2">2×</option>
             </select>
           </div>
-          <div class="bz-tts-progress"><div class="bz-tts-progress-fill"></div></div>
         </div>
 
         <!-- AI Insights -->
@@ -574,20 +604,26 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     header.style.cursor = "grab";
   });
 
-  // ── TTS (Polly audio injected async, browser fallback) ──
+  // ── TTS (single toggle button, Polly with browser fallback) ──
   const ttsScript = insights.ttsScript || "";
-  const playBtn = backdrop.querySelector(".bz-tts-play") as HTMLElement;
-  const pauseBtn = backdrop.querySelector(".bz-tts-pause") as HTMLElement;
+  const toggleBtn = backdrop.querySelector(".bz-tts-toggle") as HTMLElement;
   const stopBtn = backdrop.querySelector(".bz-tts-stop") as HTMLElement;
   const speedSelect = backdrop.querySelector(".bz-tts-speed") as HTMLSelectElement;
   const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
+  let isPlaying = false;
 
   function getPollyAudio(): HTMLAudioElement | null {
     return (window as any).__bodhiPollyAudio || null;
   }
 
   function hasPolly(): boolean {
-    return playBtn?.getAttribute("data-polly") === "true" && !!getPollyAudio();
+    return toggleBtn?.getAttribute("data-polly") === "true" && !!getPollyAudio();
+  }
+
+  function setPlaying(state: boolean) {
+    isPlaying = state;
+    if (state) toggleBtn.classList.add("bz-playing");
+    else toggleBtn.classList.remove("bz-playing");
   }
 
   function startBrowserTTS() {
@@ -595,33 +631,30 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     const utterance = new SpeechSynthesisUtterance(ttsScript);
     utterance.rate = parseFloat(speedSelect.value);
     utterance.lang = "en-IN";
-    utterance.onstart = () => { playBtn.classList.add("bz-playing"); progressFill.style.width = "0%"; };
-    utterance.onend = () => { playBtn.classList.remove("bz-playing"); progressFill.style.width = "100%"; };
+    utterance.onstart = () => { setPlaying(true); progressFill.style.width = "0%"; };
+    utterance.onend = () => { setPlaying(false); progressFill.style.width = "100%"; };
     utterance.onboundary = (e: SpeechSynthesisEvent) => {
       if (ttsScript.length > 0) progressFill.style.width = `${Math.min(100, (e.charIndex / ttsScript.length) * 100)}%`;
     };
     window.speechSynthesis.speak(utterance);
   }
 
-  playBtn.addEventListener("click", () => {
+  toggleBtn.addEventListener("click", () => {
     if (hasPolly()) {
       const audio = getPollyAudio()!;
       if (audio.paused) { audio.playbackRate = parseFloat(speedSelect.value); audio.play(); }
+      else { audio.pause(); }
     } else {
-      if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); playBtn.classList.add("bz-playing"); }
+      if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); setPlaying(true); }
+      else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); setPlaying(false); }
       else { startBrowserTTS(); }
     }
-  });
-
-  pauseBtn.addEventListener("click", () => {
-    if (hasPolly()) { getPollyAudio()!.pause(); }
-    else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); playBtn.classList.remove("bz-playing"); }
   });
 
   stopBtn.addEventListener("click", () => {
     if (hasPolly()) { const a = getPollyAudio()!; a.pause(); a.currentTime = 0; }
     else { window.speechSynthesis.cancel(); }
-    playBtn.classList.remove("bz-playing");
+    setPlaying(false);
     progressFill.style.width = "0%";
   });
 
@@ -639,10 +672,10 @@ function injectPollyAudio(audioUrl: string) {
   if (label) label.textContent = "Ready";
 
   const audio = new Audio(audioUrl);
-  const playBtn = backdrop.querySelector(".bz-tts-play") as HTMLElement;
+  const toggleBtn = backdrop.querySelector(".bz-tts-toggle") as HTMLElement;
   const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
 
-  if (!playBtn) return;
+  if (!toggleBtn) return;
 
   audio.addEventListener("timeupdate", () => {
     if (audio.duration > 0 && progressFill) {
@@ -650,14 +683,14 @@ function injectPollyAudio(audioUrl: string) {
     }
   });
   audio.addEventListener("ended", () => {
-    playBtn.classList.remove("bz-playing");
+    toggleBtn.classList.remove("bz-playing");
     if (progressFill) progressFill.style.width = "100%";
   });
-  audio.addEventListener("play", () => playBtn.classList.add("bz-playing"));
-  audio.addEventListener("pause", () => playBtn.classList.remove("bz-playing"));
+  audio.addEventListener("play", () => toggleBtn.classList.add("bz-playing"));
+  audio.addEventListener("pause", () => toggleBtn.classList.remove("bz-playing"));
 
   (window as any).__bodhiPollyAudio = audio;
-  playBtn.setAttribute("data-polly", "true");
+  toggleBtn.setAttribute("data-polly", "true");
 }
 
 function markTTSReady() {
@@ -682,6 +715,9 @@ function removeZenOverlay() {
 export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
   const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
 
+  const safeData = JSON.parse(JSON.stringify(data ?? {}));
+  const safeInsights = JSON.parse(JSON.stringify(insights ?? {}));
+
   (chrome.scripting.insertCSS as any)({
     target: { tabId },
     css: getZenCSS(),
@@ -691,7 +727,7 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
     target: { tabId },
     func: buildZenOverlay,
     world: "MAIN",
-    args: [data, insights, iconUrl, undefined],
+    args: [safeData, safeInsights, iconUrl, null],
   });
 
   if (isAIAvailable() && insights.ttsScript) {

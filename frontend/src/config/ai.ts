@@ -1,7 +1,8 @@
 declare const process: { env: { API_BASE_URL: string } };
 
 const API_BASE_URL = process.env.API_BASE_URL;
-const REQUEST_TIMEOUT_MS = 25_000;
+const INSIGHTS_TIMEOUT_MS = 30_000;
+const TTS_TIMEOUT_MS = 60_000;
 
 export interface AIInsightsResponse {
   summary: string;
@@ -21,13 +22,13 @@ export function isAIAvailable(): boolean {
   return typeof API_BASE_URL === "string" && API_BASE_URL.length > 0;
 }
 
-async function apiFetch<T>(path: string, body: unknown): Promise<T> {
+async function apiFetch<T>(path: string, body: unknown, timeoutMs: number): Promise<T> {
   if (!isAIAvailable()) {
     throw new Error("Backend API URL not configured");
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -49,7 +50,7 @@ async function apiFetch<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function callBackendForInsights(data: any): Promise<AIInsightsResponse> {
-  const result = await apiFetch<AIInsightsResponse>("/api/insights", data);
+  const result = await apiFetch<AIInsightsResponse>("/api/insights", data, INSIGHTS_TIMEOUT_MS);
 
   if (!result.pros || !result.cons || typeof result.dealScore !== "number") {
     throw new Error("Malformed response from backend");
@@ -60,5 +61,5 @@ export async function callBackendForInsights(data: any): Promise<AIInsightsRespo
 }
 
 export async function callBackendForTTS(text: string): Promise<TTSResponse> {
-  return apiFetch<TTSResponse>("/api/tts", { text });
+  return apiFetch<TTSResponse>("/api/tts", { text }, TTS_TIMEOUT_MS);
 }
