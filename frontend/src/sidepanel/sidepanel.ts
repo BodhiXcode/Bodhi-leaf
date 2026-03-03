@@ -496,7 +496,7 @@ function showInsightsLoading() {
 }
 
 function renderInsights(insights: Awaited<ReturnType<typeof generateInsights>>) {
-  const sourceText = insights.source === "local" ? "Local" : "AWS Bedrock";
+  const sourceText = insights.source === "local" ? "Local" : "AI";
   const sourceLabel = insights.source !== "local"
     ? `<span class="insights-source insights-source--ai">${sourceText}</span>`
     : '<span class="insights-source insights-source--local">Local</span>';

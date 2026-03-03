@@ -1,4 +1,4 @@
-import { callBackendForInsights, isAIAvailable, type AIInsightsResponse } from "../config/ai";
+import { callBackendForInsights, isAIAvailable, type AIInsightsResponse, type StarBreakdown } from "../config/ai";
 
 export interface ZenInsights {
   summary: string;
@@ -7,6 +7,10 @@ export interface ZenInsights {
   dealScore: number;
   dealVerdict: string;
   quickSpecs: { label: string; value: string }[];
+  starBreakdown: StarBreakdown[];
+  sellerVsProduct: string;
+  sellerAdvice: string;
+  newVersionAlert: string;
   ttsScript: string;
   source: "bedrock" | "local";
 }
@@ -279,7 +283,7 @@ function generateInsightsLocal(data: any): ZenInsights {
   const { score: dealScore, verdict: dealVerdict } = calculateDealScore(data);
   const summary = buildSummary(data);
   const quickSpecs = pickQuickSpecs(data);
-  const partial: ZenInsights = { summary, pros, cons, dealScore, dealVerdict, quickSpecs, ttsScript: "", source: "local" };
+  const partial: ZenInsights = { summary, pros, cons, dealScore, dealVerdict, quickSpecs, starBreakdown: [], sellerVsProduct: "", sellerAdvice: "", newVersionAlert: "", ttsScript: "", source: "local" };
   partial.ttsScript = buildTTSScript(data, partial);
   return partial;
 }
@@ -302,8 +306,12 @@ export async function generateInsights(data: any): Promise<ZenInsights> {
         dealScore: aiResult.dealScore,
         dealVerdict: aiResult.dealVerdict || "",
         quickSpecs,
+        starBreakdown: aiResult.starBreakdown || [],
+        sellerVsProduct: aiResult.sellerVsProduct || "",
+        sellerAdvice: aiResult.sellerAdvice || "",
+        newVersionAlert: aiResult.newVersionAlert || "",
         ttsScript: "",
-        source: aiResult.source || "bedrock",
+        source: (aiResult.source || "bedrock") as "bedrock" | "local",
       };
       partial.ttsScript = buildTTSScript(data, partial);
       return partial;
