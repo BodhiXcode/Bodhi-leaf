@@ -6,13 +6,13 @@ from functools import lru_cache
 
 import boto3
 
-from app.models import ProductData, InsightsResponse
+from app.models import ProductData, InsightsResponse, StarBreakdown
 
 logger = logging.getLogger("bodhi-leaf")
 
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-micro-v1:0")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
-MAX_TOKENS = 1024
+MAX_TOKENS = 1500
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
@@ -31,19 +31,31 @@ def _get_client():
 
 
 SYSTEM_PROMPT = (
-    "You are a sharp, concise product analyst for an Amazon shopping assistant. "
-    "Analyze the scraped Amazon product data and provide actionable insights for a buyer. "
-    "Be specific and data-driven. Reference actual numbers, features, and review sentiments. "
-    "If reviews mention specific issues or praises, reflect those. Don't be generic."
+    "You are a friendly shopping buddy helping a regular person decide whether to buy a product on Amazon. "
+    "Write in simple, everyday language — no jargon, no marketing speak. "
+    "Imagine you're advising a friend or family member. Be honest, specific, and helpful. "
+    "Reference actual numbers, review sentiments, and real issues people mention."
 )
 
 JSON_INSTRUCTIONS = (
     "Respond with ONLY a JSON object (no markdown, no code fences) with these exact keys:\n"
-    '- "summary": a concise 1-2 sentence product summary\n'
-    '- "pros": array of 3-6 specific pros\n'
-    '- "cons": array of 2-5 specific cons or cautions\n'
+    '- "summary": 2-3 sentence plain-English summary a non-tech person can understand. '
+    'Start with what the product IS, then whether it\'s worth buying.\n'
+    '- "pros": array of 3-6 specific pros in simple language\n'
+    '- "cons": array of 2-5 specific cons or cautions in simple language\n'
     '- "dealScore": number from 0 to 10 (one decimal)\n'
-    '- "dealVerdict": a short verdict sentence'
+    '- "dealVerdict": one short sentence a friend would say (e.g. "Great buy if you need X")\n'
+    '- "starBreakdown": array of objects {star, pct, topIssue} for stars 1-5. '
+    'pct is the percentage from the histogram. topIssue is a one-line summary of what '
+    'people at that star level commonly say (e.g. "Battery dies within a month"). '
+    'If no data, use empty string for topIssue.\n'
+    '- "sellerVsProduct": one of "seller_issue", "product_issue", "both", or "no_issues". '
+    'Analyze if negative reviews complain about the seller (packaging, delivery, wrong item) '
+    'vs the product itself (quality, defects, features).\n'
+    '- "sellerAdvice": if sellerVsProduct is "seller_issue" or "both", suggest checking other '
+    'sellers on this listing. Otherwise empty string.\n'
+    '- "newVersionAlert": if the product name or reviews hint at a newer model/version '
+    'existing or launching soon, mention it briefly. Otherwise empty string.'
 )
 
 
@@ -93,10 +105,10 @@ def _build_prompt(product: ProductData) -> str:
 
     if product.reviews:
         parts.append("\nCustomer Reviews:")
-        for review in product.reviews[:8]:
+        for review in product.reviews[:10]:
             stars = f" [{review.stars}]" if review.stars else ""
             title = review.title or ""
-            body = review.body[:300] if review.body else ""
+            body = review.body[:400] if review.body else ""
             if title or body:
                 parts.append(f"  - {title}{stars}: {body}")
 
@@ -147,11 +159,24 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
     deal_score = float(parsed.get("dealScore", 0))
     deal_score = round(min(max(deal_score, 0), 10), 1)
 
+    star_breakdown = []
+    for sb in parsed.get("starBreakdown", []):
+        if isinstance(sb, dict):
+            star_breakdown.append(StarBreakdown(
+                star=int(sb.get("star", 0)),
+                pct=int(sb.get("pct", 0)),
+                topIssue=str(sb.get("topIssue", "")),
+            ))
+
     return InsightsResponse(
         summary=parsed.get("summary", ""),
         pros=parsed.get("pros", []),
         cons=parsed.get("cons", []),
         dealScore=deal_score,
         dealVerdict=parsed.get("dealVerdict", ""),
+        starBreakdown=star_breakdown,
+        sellerVsProduct=parsed.get("sellerVsProduct", ""),
+        sellerAdvice=parsed.get("sellerAdvice", ""),
+        newVersionAlert=parsed.get("newVersionAlert", ""),
         source="bedrock",
     )

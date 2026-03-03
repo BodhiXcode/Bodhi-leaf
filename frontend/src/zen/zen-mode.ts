@@ -23,8 +23,8 @@ function getZenCSS(): string {
 
   #bodhi-zen-panel {
     position: relative;
-    width: 420px;
-    max-width: 94vw;
+    width: 520px;
+    max-width: 96vw;
     max-height: 88vh;
     background: linear-gradient(145deg, #0e0e15, #0a0a10);
     border: 1px solid rgba(255,255,255,0.08);
@@ -404,6 +404,112 @@ function getZenCSS(): string {
     word-break: break-word;
   }
 
+  /* ── Star Breakdown ── */
+  .bz-star-breakdown { display: flex; flex-direction: column; gap: 6px; }
+  .bz-star-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 32px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .bz-star-label { color: #f5a623; font-weight: 600; text-align: right; }
+  .bz-star-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .bz-star-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease-out; }
+  .bz-star-pct { color: #5c5c66; font-weight: 600; font-size: 10px; }
+  .bz-star-issue {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    color: #5c5c66;
+    padding-left: 36px;
+    line-height: 1.3;
+    margin-top: -2px;
+  }
+
+  /* ── Seller Analysis ── */
+  .bz-seller-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .bz-seller-seller-issue { background: rgba(255,69,58,0.12); color: #ff6b6b; }
+  .bz-seller-product-issue { background: rgba(245,166,35,0.12); color: #f5a623; }
+  .bz-seller-both { background: rgba(255,69,58,0.12); color: #ff6b6b; }
+  .bz-seller-no-issues { background: rgba(52,199,89,0.12); color: #34c759; }
+  .bz-seller-advice { font-size: 12px; color: #a0a0ab; line-height: 1.5; }
+
+  /* ── New Version Alert ── */
+  .bz-alert-section { border-color: rgba(245,166,35,0.15) !important; }
+  .bz-alert-text { font-size: 12px; color: #f5a623; line-height: 1.5; }
+
+  /* ── Preference Quiz ── */
+  .bz-quiz-cards { display: flex; flex-direction: column; gap: 8px; }
+  .bz-quiz-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 14px;
+    animation: bzSlideIn 0.3s ease-out forwards;
+    opacity: 0;
+  }
+  @keyframes bzSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+  .bz-quiz-question {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0f0f5;
+    margin-bottom: 8px;
+  }
+  .bz-quiz-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bz-quiz-opt {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    background: rgba(255,255,255,0.04);
+    color: #a0a0ab;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .bz-quiz-opt:hover { background: rgba(0,230,200,0.08); border-color: rgba(0,230,200,0.2) !important; color: #f0f0f5; }
+  .bz-quiz-opt.bz-selected {
+    background: rgba(0,230,200,0.15);
+    border-color: rgba(0,230,200,0.3) !important;
+    color: #00e6c8;
+    font-weight: 600;
+  }
+
+  /* ── Usefulness Graph ── */
+  .bz-quiz-result { margin-top: 12px; }
+  .bz-quiz-score-title { font-size: 12px; font-weight: 700; color: #a0a0ab; margin-bottom: 10px; }
+  .bz-quiz-graph { display: flex; flex-direction: column; gap: 6px; }
+  .bz-graph-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 36px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .bz-graph-label { color: #a0a0ab; font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bz-graph-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .bz-graph-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease-out; }
+  .bz-graph-pct { color: #f0f0f5; font-weight: 700; font-size: 12px; }
+  .bz-match-overall {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .bz-match-label { font-size: 12px; font-weight: 600; color: #a0a0ab; }
+  .bz-match-value { font-size: 20px; font-weight: 800; }
+
   /* ── Minimized state ── */
   #bodhi-zen-panel.bz-minimized .bz-content { display: none; }
   #bodhi-zen-panel.bz-minimized { max-height: none; }
@@ -411,6 +517,114 @@ function getZenCSS(): string {
 }
 
 function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl?: string) {
+  // ── Quiz helpers (must be inside buildZenOverlay for MAIN world execution) ──
+
+  function detectCategory(d: any): string {
+    const text = `${d.title || ""} ${(d.features || []).join(" ")}`.toLowerCase();
+    if (/phone|smartphone|mobile/i.test(text)) return "phone";
+    if (/laptop|notebook|macbook|chromebook/i.test(text)) return "laptop";
+    if (/monitor|display|screen/i.test(text)) return "monitor";
+    if (/headphone|earphone|earbuds|headset|tws/i.test(text)) return "audio";
+    if (/camera|dslr|mirrorless|gopro/i.test(text)) return "camera";
+    if (/tv|television|smart tv/i.test(text)) return "tv";
+    if (/watch|smartwatch|fitness band/i.test(text)) return "wearable";
+    if (/tablet|ipad/i.test(text)) return "tablet";
+    if (/keyboard|mouse|gaming/i.test(text)) return "peripherals";
+    return "general";
+  }
+
+  function getQuizQuestions(category: string) {
+    const common = [
+      { id: "budget", question: "What's your budget priority?", options: [
+        { label: "Cheapest possible", value: "low" },
+        { label: "Best value", value: "mid" },
+        { label: "Premium, price no bar", value: "high" },
+      ]},
+      { id: "usage", question: "How often will you use this?", options: [
+        { label: "Daily", value: "daily" },
+        { label: "Few times a week", value: "weekly" },
+        { label: "Occasionally", value: "occasional" },
+      ]},
+      { id: "brand", question: "How important is brand reputation?", options: [
+        { label: "Very important", value: "high" },
+        { label: "Somewhat", value: "mid" },
+        { label: "Don't care", value: "low" },
+      ]},
+    ];
+
+    const categoryQuestions: Record<string, any[]> = {
+      phone: [{ id: "phone_use", question: "Primary use?", options: [
+        { label: "Camera & social media", value: "camera" },
+        { label: "Gaming", value: "gaming" },
+        { label: "Calls & basic apps", value: "basic" },
+      ]}],
+      laptop: [{ id: "laptop_use", question: "Primary use?", options: [
+        { label: "Work / coding", value: "work" },
+        { label: "Gaming", value: "gaming" },
+        { label: "Browsing & media", value: "casual" },
+      ]}],
+      monitor: [{ id: "monitor_use", question: "Primary use?", options: [
+        { label: "Work / productivity", value: "work" },
+        { label: "Gaming", value: "gaming" },
+        { label: "Content creation", value: "creative" },
+      ]}],
+      audio: [{ id: "audio_use", question: "Primary use?", options: [
+        { label: "Music", value: "music" },
+        { label: "Calls / meetings", value: "calls" },
+        { label: "Gaming", value: "gaming" },
+      ]}],
+      general: [{ id: "durability", question: "How important is durability?", options: [
+        { label: "Must last years", value: "high" },
+        { label: "Decent lifespan", value: "mid" },
+        { label: "Short-term use", value: "low" },
+      ]}],
+    };
+
+    return [...common, ...(categoryQuestions[category] || categoryQuestions.general)];
+  }
+
+  function computeMatchScores(d: any, ins: any, answers: Record<string, string>) {
+    const scores: { label: string; score: number }[] = [];
+
+    const savingsMatch = (d.savings || "").match(/(\d+)/);
+    const savingsPct = savingsMatch ? parseInt(savingsMatch[1]) : 0;
+    let valueScore = 40;
+    if (answers.budget === "low") valueScore = savingsPct >= 30 ? 90 : savingsPct >= 15 ? 60 : 30;
+    else if (answers.budget === "mid") valueScore = savingsPct >= 15 ? 85 : 55;
+    else valueScore = 75;
+    if (d.coupon) valueScore = Math.min(100, valueScore + 10);
+    scores.push({ label: "Value for Money", score: Math.min(100, valueScore) });
+
+    const ratingMatch = (d.ratingValue || "").match(/([\d.]+)/);
+    const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+    const ratingScore = rating > 0 ? Math.min(100, (rating / 5) * 100) : 50;
+    scores.push({ label: "Rating Quality", score: ratingScore });
+
+    const brandScore = (() => {
+      if (answers.brand === "low") return 80;
+      const seller = (d.seller || "").toLowerCase();
+      const trusted = seller.includes("amazon") || seller.includes("cloudtail") || seller.includes("appario");
+      if (answers.brand === "high") return trusted ? 90 : 50;
+      return trusted ? 80 : 60;
+    })();
+    scores.push({ label: "Brand Trust", score: brandScore });
+
+    const usageScore = (() => {
+      if (answers.usage === "daily") return rating >= 4 ? 85 : 55;
+      if (answers.usage === "weekly") return rating >= 3.5 ? 80 : 60;
+      return 75;
+    })();
+    scores.push({ label: "Usage Fit", score: usageScore });
+
+    const prosCount = (ins.pros || []).length;
+    const consCount = (ins.cons || []).length;
+    const sentimentScore = prosCount + consCount > 0
+      ? Math.min(100, Math.round((prosCount / (prosCount + consCount)) * 100))
+      : 50;
+    scores.push({ label: "Review Sentiment", score: sentimentScore });
+
+    return scores;
+  }
   if (document.getElementById("bodhi-zen-backdrop")) return;
 
   const esc = (s: string) => {
@@ -542,6 +756,56 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
           </div>
         </div>
 
+        <!-- Star Breakdown -->
+        ${insights.starBreakdown && insights.starBreakdown.length > 0 ? `
+        <div class="bz-section">
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Rating Breakdown</div>
+          <div class="bz-star-breakdown">
+            ${[5,4,3,2,1].map(s => {
+              const sb = insights.starBreakdown.find((x: any) => x.star === s);
+              const pct = sb ? sb.pct : 0;
+              const issue = sb ? sb.topIssue : "";
+              const barColor = s >= 4 ? "#34c759" : s === 3 ? "#f5a623" : "#ff453a";
+              return `<div class="bz-star-row">
+                <span class="bz-star-label">${s}★</span>
+                <div class="bz-star-bar"><div class="bz-star-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                <span class="bz-star-pct">${pct}%</span>
+                ${issue ? `<span class="bz-star-issue">${esc(issue)}</span>` : ""}
+              </div>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
+
+        <!-- Seller Analysis -->
+        ${insights.sellerVsProduct || insights.sellerAdvice ? `
+        <div class="bz-section bz-seller-section">
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller Analysis</div>
+          ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${
+            insights.sellerVsProduct === "seller_issue" ? "Seller-related issues detected" :
+            insights.sellerVsProduct === "product_issue" ? "Product-related issues" :
+            insights.sellerVsProduct === "both" ? "Both seller & product issues" :
+            "No major issues found"
+          }</div>` : ""}
+          ${insights.sellerAdvice ? `<div class="bz-seller-advice">${esc(insights.sellerAdvice)}</div>` : ""}
+        </div>` : ""}
+
+        <!-- New Version Alert -->
+        ${insights.newVersionAlert ? `
+        <div class="bz-section bz-alert-section">
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Heads Up</div>
+          <div class="bz-alert-text">${esc(insights.newVersionAlert)}</div>
+        </div>` : ""}
+
+        <!-- Preference Quiz -->
+        <div class="bz-section bz-quiz-section">
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg> Is this right for you?</div>
+          <div class="bz-quiz-cards"></div>
+          <div class="bz-quiz-result" style="display:none">
+            <div class="bz-quiz-score-title">Your Match Score</div>
+            <div class="bz-quiz-graph"></div>
+          </div>
+        </div>
+
         <!-- Quick Specs -->
         ${insights.quickSpecs.length > 0 ? `
         <div class="bz-section">
@@ -662,6 +926,90 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     if (hasPolly() && !getPollyAudio()!.paused) { getPollyAudio()!.playbackRate = parseFloat(speedSelect.value); }
     else if (window.speechSynthesis.speaking) { startBrowserTTS(); }
   });
+
+  // ── Preference Quiz (flash-card MCQ) ──
+  const quizContainer = backdrop.querySelector(".bz-quiz-cards") as HTMLElement;
+  const quizResult = backdrop.querySelector(".bz-quiz-result") as HTMLElement;
+  const quizGraph = backdrop.querySelector(".bz-quiz-graph") as HTMLElement;
+  if (quizContainer) {
+    const category = detectCategory(data);
+    const questions = getQuizQuestions(category);
+    const answers: Record<string, string> = {};
+    const STORAGE_KEY = "__bodhiPrefs";
+
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+    })();
+
+    let hasSavedPrefs = Object.keys(saved).length >= questions.length;
+
+    if (hasSavedPrefs) {
+      Object.assign(answers, saved);
+      showGraph();
+    } else {
+      showQuestion(0);
+    }
+
+    function showQuestion(idx: number) {
+      if (idx >= questions.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+        showGraph();
+        return;
+      }
+      const q = questions[idx];
+      if (saved[q.id]) {
+        answers[q.id] = saved[q.id];
+        showQuestion(idx + 1);
+        return;
+      }
+      const card = document.createElement("div");
+      card.className = "bz-quiz-card";
+      card.style.animationDelay = `${idx * 0.05}s`;
+      card.innerHTML = `
+        <div class="bz-quiz-question">${q.question}</div>
+        <div class="bz-quiz-options">
+          ${q.options.map((o: any) => `<button class="bz-quiz-opt" data-value="${o.value}">${o.label}</button>`).join("")}
+        </div>
+      `;
+      quizContainer.innerHTML = "";
+      quizContainer.appendChild(card);
+      card.querySelectorAll(".bz-quiz-opt").forEach(btn => {
+        btn.addEventListener("click", () => {
+          answers[q.id] = (btn as HTMLElement).getAttribute("data-value") || "";
+          card.querySelectorAll(".bz-quiz-opt").forEach(b => b.classList.remove("bz-selected"));
+          btn.classList.add("bz-selected");
+          setTimeout(() => showQuestion(idx + 1), 300);
+        });
+      });
+    }
+
+    function showGraph() {
+      quizContainer.style.display = "none";
+      quizResult.style.display = "block";
+
+      const scores = computeMatchScores(data, insights, answers);
+      let overallSum = 0, count = 0;
+      let graphHtml = "";
+      for (const s of scores) {
+        const pct = Math.round(s.score);
+        overallSum += pct;
+        count++;
+        const color = pct >= 70 ? "#34c759" : pct >= 40 ? "#f5a623" : "#ff453a";
+        graphHtml += `<div class="bz-graph-row">
+          <span class="bz-graph-label">${s.label}</span>
+          <div class="bz-graph-bar"><div class="bz-graph-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="bz-graph-pct" style="color:${color}">${pct}%</span>
+        </div>`;
+      }
+      const overall = count > 0 ? Math.round(overallSum / count) : 0;
+      const overallColor = overall >= 70 ? "#34c759" : overall >= 40 ? "#f5a623" : "#ff453a";
+      graphHtml += `<div class="bz-match-overall">
+        <span class="bz-match-label">Overall Match</span>
+        <span class="bz-match-value" style="color:${overallColor}">${overall}%</span>
+      </div>`;
+      quizGraph.innerHTML = graphHtml;
+    }
+  }
 }
 
 function injectPollyAudio(audioUrl: string) {

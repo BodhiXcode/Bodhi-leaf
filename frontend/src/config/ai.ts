@@ -4,12 +4,22 @@ const API_BASE_URL = process.env.API_BASE_URL;
 const INSIGHTS_TIMEOUT_MS = 30_000;
 const TTS_TIMEOUT_MS = 60_000;
 
+export interface StarBreakdown {
+  star: number;
+  pct: number;
+  topIssue: string;
+}
+
 export interface AIInsightsResponse {
   summary: string;
   pros: string[];
   cons: string[];
   dealScore: number;
   dealVerdict: string;
+  starBreakdown: StarBreakdown[];
+  sellerVsProduct: string;
+  sellerAdvice: string;
+  newVersionAlert: string;
   source: string;
 }
 

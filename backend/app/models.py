@@ -44,12 +44,22 @@ class ProductData(BaseModel):
     seller: str = ""
 
 
+class StarBreakdown(BaseModel):
+    star: int
+    pct: int = 0
+    topIssue: str = ""
+
+
 class InsightsResponse(BaseModel):
     summary: str
     pros: list[str]
     cons: list[str]
     dealScore: float
     dealVerdict: str
+    starBreakdown: list[StarBreakdown] = Field(default_factory=list)
+    sellerVsProduct: str = ""
+    sellerAdvice: str = ""
+    newVersionAlert: str = ""
     source: str = "bedrock"
 
 
