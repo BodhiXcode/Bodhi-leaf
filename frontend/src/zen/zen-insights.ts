@@ -8,7 +8,7 @@ export interface ZenInsights {
   dealVerdict: string;
   quickSpecs: { label: string; value: string }[];
   ttsScript: string;
-  source: "gemini" | "local";
+  source: "bedrock" | "local";
 }
 
 // ═══════════════════════════════════════════════════

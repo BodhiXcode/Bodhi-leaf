@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import logging
 from functools import lru_cache
 
@@ -9,10 +10,9 @@ from app.models import ProductData, InsightsResponse
 
 logger = logging.getLogger("bodhi-leaf")
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-micro-v1:0")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 MAX_TOKENS = 1024
-
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
@@ -30,17 +30,25 @@ def _get_client():
     return session.client("bedrock-runtime")
 
 
-def _build_prompt(product: ProductData) -> str:
-    parts: list[str] = []
+SYSTEM_PROMPT = (
+    "You are a sharp, concise product analyst for an Amazon shopping assistant. "
+    "Analyze the scraped Amazon product data and provide actionable insights for a buyer. "
+    "Be specific and data-driven. Reference actual numbers, features, and review sentiments. "
+    "If reviews mention specific issues or praises, reflect those. Don't be generic."
+)
 
-    parts.append(
-        "You are a sharp, concise product analyst for an Amazon shopping assistant. "
-        "Analyze the following scraped Amazon product data and provide actionable insights for a buyer. "
-        "Be specific and data-driven. Reference actual numbers, features, and review sentiments. "
-        "If reviews mention specific issues or praises, reflect those. Don't be generic."
-    )
-    parts.append("")
-    parts.append("=== PRODUCT DATA ===")
+JSON_INSTRUCTIONS = (
+    "Respond with ONLY a JSON object (no markdown, no code fences) with these exact keys:\n"
+    '- "summary": a concise 1-2 sentence product summary\n'
+    '- "pros": array of 3-6 specific pros\n'
+    '- "cons": array of 2-5 specific cons or cautions\n'
+    '- "dealScore": number from 0 to 10 (one decimal)\n'
+    '- "dealVerdict": a short verdict sentence'
+)
+
+
+def _build_prompt(product: ProductData) -> str:
+    parts: list[str] = ["=== PRODUCT DATA ==="]
 
     if product.title:
         parts.append(f"Title: {product.title}")
@@ -68,7 +76,6 @@ def _build_prompt(product: ProductData) -> str:
     if product.ratingBtns:
         histogram_parts = []
         for btn in product.ratingBtns:
-            import re
             label_m = re.search(r"(\d)\s*star", btn.label, re.IGNORECASE)
             pct_m = re.search(r"(\d+)", btn.pct)
             if label_m and pct_m:
@@ -95,14 +102,7 @@ def _build_prompt(product: ProductData) -> str:
 
     parts.append("\n=== END DATA ===")
     parts.append("")
-    parts.append(
-        "Respond with ONLY a JSON object (no markdown, no code fences) with these exact keys:\n"
-        '- "summary": a concise 1-2 sentence product summary\n'
-        '- "pros": array of 3-6 specific pros\n'
-        '- "cons": array of 2-5 specific cons or cautions\n'
-        '- "dealScore": number from 0 to 10 (one decimal)\n'
-        '- "dealVerdict": a short verdict sentence'
-    )
+    parts.append(JSON_INSTRUCTIONS)
 
     return "\n".join(parts)
 
@@ -112,15 +112,18 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
     prompt = _build_prompt(product)
 
     request_body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": MAX_TOKENS,
-        "temperature": 0.7,
+        "schemaVersion": "messages-v1",
+        "system": [{"text": SYSTEM_PROMPT}],
         "messages": [
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": [{"text": prompt}]}
         ],
+        "inferenceConfig": {
+            "maxTokens": MAX_TOKENS,
+            "temperature": 0.7,
+        },
     })
 
-    logger.info(f"Calling Bedrock model {MODEL_ID} for product: {product.title[:60]}")
+    logger.info(f"Calling Bedrock model {MODEL_ID} (region={AWS_REGION}) for product: {product.title[:60]}")
 
     response = client.invoke_model(
         modelId=MODEL_ID,
@@ -130,7 +133,7 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
     )
 
     response_body = json.loads(response["body"].read())
-    raw_text = response_body["content"][0]["text"]
+    raw_text = response_body["output"]["message"]["content"][0]["text"]
 
     cleaned = raw_text.strip()
     if cleaned.startswith("```"):
