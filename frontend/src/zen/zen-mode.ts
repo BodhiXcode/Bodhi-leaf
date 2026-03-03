@@ -1,4 +1,5 @@
 import type { ZenInsights } from "./zen-insights";
+import { callBackendForTTS, isAIAvailable } from "../config/ai";
 
 function getZenCSS(): string {
   return `
@@ -22,17 +23,17 @@ function getZenCSS(): string {
 
   #bodhi-zen-panel {
     position: relative;
-    width: 400px;
+    width: 420px;
     max-width: 94vw;
     max-height: 88vh;
-    background: #0c0c11;
+    background: linear-gradient(145deg, #0e0e15, #0a0a10);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 20px;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px rgba(0,230,200,0.03);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: bzSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: bzSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #f0f0f5;
     font-size: 13px;
@@ -81,26 +82,29 @@ function getZenCSS(): string {
     padding: 2px 8px;
     border-radius: 100px;
   }
-  .bz-header-actions { display: flex; gap: 6px; }
+  .bz-header-actions { display: flex; gap: 4px; }
   .bz-header-actions button {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border: none;
     border-radius: 8px;
     background: rgba(255,255,255,0.06);
     color: #a0a0ab;
-    font-size: 14px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.15s;
+    padding: 0;
   }
+  .bz-header-actions button svg { width: 14px; height: 14px; }
   .bz-header-actions button:hover {
     background: rgba(255,255,255,0.12);
     color: #f0f0f5;
   }
-  .bz-btn-close:hover { background: rgba(255,69,58,0.2) !important; color: #ff453a !important; }
+  .bz-header-actions button:hover svg { stroke: #f0f0f5; }
+  .bz-btn-close:hover { background: rgba(255,69,58,0.15) !important; }
+  .bz-btn-close:hover svg { stroke: #ff453a !important; }
 
   /* ── Content ── */
   .bz-content {
@@ -133,6 +137,15 @@ function getZenCSS(): string {
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+  .bz-section-title svg { flex-shrink: 0; }
+  .bz-tts-loading-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: #666;
+    margin-left: auto;
+    text-transform: none;
   }
 
   /* ── Product Summary ── */
@@ -200,21 +213,24 @@ function getZenCSS(): string {
     border: none;
     border-radius: 10px;
     background: rgba(255,255,255,0.06);
-    color: #f0f0f5;
-    font-size: 15px;
+    color: #a0a0ab;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.15s;
     flex-shrink: 0;
+    padding: 0;
   }
+  .bz-tts-btn svg { width: 16px; height: 16px; }
   .bz-tts-btn:hover { background: rgba(255,255,255,0.1); }
+  .bz-tts-btn:hover svg { stroke: #f0f0f5; fill: none; }
+  .bz-tts-play:hover svg { fill: #f0f0f5; stroke: none; }
   .bz-tts-btn.bz-playing {
     background: rgba(0,230,200,0.15);
-    color: #00e6c8;
-    box-shadow: 0 0 12px rgba(0,230,200,0.15);
   }
+  .bz-tts-btn.bz-playing svg { stroke: #00e6c8; fill: none; }
+  .bz-tts-play.bz-playing svg { fill: #00e6c8; stroke: none; }
   .bz-tts-select {
     flex: 1;
     background: rgba(255,255,255,0.06);
@@ -366,7 +382,7 @@ function getZenCSS(): string {
   `;
 }
 
-function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
+function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl?: string) {
   if (document.getElementById("bodhi-zen-backdrop")) return;
 
   const esc = (s: string) => {
@@ -425,8 +441,8 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
           <span class="bz-header-badge">AI</span>
         </div>
         <div class="bz-header-actions">
-          <button class="bz-btn-minimize" title="Minimize">─</button>
-          <button class="bz-btn-close" title="Close">✕</button>
+          <button class="bz-btn-minimize" title="Minimize"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+          <button class="bz-btn-close" title="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
       <div class="bz-content">
@@ -449,11 +465,11 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
 
         <!-- TTS -->
         <div class="bz-section">
-          <div class="bz-section-title">🔊 Read Aloud</div>
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Read Aloud <span class="bz-tts-loading-label">${ttsAudioUrl ? "Ready" : "Loading voice…"}</span></div>
           <div class="bz-tts-controls">
-            <button class="bz-tts-btn bz-tts-play" title="Play">▶</button>
-            <button class="bz-tts-btn bz-tts-pause" title="Pause">⏸</button>
-            <button class="bz-tts-btn bz-tts-stop" title="Stop">⏹</button>
+            <button class="bz-tts-btn bz-tts-play" title="Play"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg></button>
+            <button class="bz-tts-btn bz-tts-pause" title="Pause"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg></button>
+            <button class="bz-tts-btn bz-tts-stop" title="Stop"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
             <select class="bz-tts-select bz-tts-speed">
               <option value="0.75">0.75×</option>
               <option value="1" selected>1×</option>
@@ -467,7 +483,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
 
         <!-- AI Insights -->
         <div class="bz-section">
-          <div class="bz-section-title">🤖 AI Insights</div>
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 6a4 4 0 0 1 3.25 1.93"/><circle cx="12" cy="14" r="4"/><path d="M12 18v4"/><path d="M8 22h8"/></svg> AI Insights</div>
           <div class="bz-deal-score">
             <div class="bz-score-ring">
               <svg viewBox="0 0 44 44">
@@ -486,11 +502,11 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
           </div>
           <div class="bz-pros-cons">
             <div class="bz-pros">
-              <div class="bz-pc-group-title bz-pro">✅ Pros</div>
+              <div class="bz-pc-group-title bz-pro"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Pros</div>
               ${prosHtml}
             </div>
             <div class="bz-cons">
-              <div class="bz-pc-group-title bz-con">❌ Cons</div>
+              <div class="bz-pc-group-title bz-con"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Cons</div>
               ${consHtml}
             </div>
           </div>
@@ -499,7 +515,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
         <!-- Quick Specs -->
         ${insights.quickSpecs.length > 0 ? `
         <div class="bz-section">
-          <div class="bz-section-title">📋 Quick Specs</div>
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Quick Specs</div>
           <div class="bz-specs-grid">${specsHtml}</div>
         </div>` : ""}
       </div>
@@ -518,9 +534,11 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
     setTimeout(() => backdrop.remove(), 250);
   });
 
+  const minSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  const maxSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
   minimizeBtn.addEventListener("click", () => {
     panel.classList.toggle("bz-minimized");
-    (minimizeBtn as HTMLElement).textContent = panel.classList.contains("bz-minimized") ? "□" : "─";
+    (minimizeBtn as HTMLElement).innerHTML = panel.classList.contains("bz-minimized") ? maxSvg : minSvg;
   });
 
   backdrop.addEventListener("click", (e) => {
@@ -556,74 +574,105 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string) {
     header.style.cursor = "grab";
   });
 
-  // ── TTS ──
+  // ── TTS (Polly audio injected async, browser fallback) ──
   const ttsScript = insights.ttsScript || "";
-  let utterance: SpeechSynthesisUtterance | null = null;
-
   const playBtn = backdrop.querySelector(".bz-tts-play") as HTMLElement;
   const pauseBtn = backdrop.querySelector(".bz-tts-pause") as HTMLElement;
   const stopBtn = backdrop.querySelector(".bz-tts-stop") as HTMLElement;
   const speedSelect = backdrop.querySelector(".bz-tts-speed") as HTMLSelectElement;
   const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
 
-  function startTTS() {
+  function getPollyAudio(): HTMLAudioElement | null {
+    return (window as any).__bodhiPollyAudio || null;
+  }
+
+  function hasPolly(): boolean {
+    return playBtn?.getAttribute("data-polly") === "true" && !!getPollyAudio();
+  }
+
+  function startBrowserTTS() {
     window.speechSynthesis.cancel();
-    utterance = new SpeechSynthesisUtterance(ttsScript);
+    const utterance = new SpeechSynthesisUtterance(ttsScript);
     utterance.rate = parseFloat(speedSelect.value);
-    utterance.pitch = 1;
     utterance.lang = "en-IN";
-
-    utterance.onstart = () => {
-      playBtn.classList.add("bz-playing");
-      progressFill.style.width = "0%";
-    };
-    utterance.onend = () => {
-      playBtn.classList.remove("bz-playing");
-      progressFill.style.width = "100%";
-    };
+    utterance.onstart = () => { playBtn.classList.add("bz-playing"); progressFill.style.width = "0%"; };
+    utterance.onend = () => { playBtn.classList.remove("bz-playing"); progressFill.style.width = "100%"; };
     utterance.onboundary = (e: SpeechSynthesisEvent) => {
-      if (ttsScript.length > 0) {
-        const pct = Math.min(100, (e.charIndex / ttsScript.length) * 100);
-        progressFill.style.width = `${pct}%`;
-      }
+      if (ttsScript.length > 0) progressFill.style.width = `${Math.min(100, (e.charIndex / ttsScript.length) * 100)}%`;
     };
-
     window.speechSynthesis.speak(utterance);
   }
 
   playBtn.addEventListener("click", () => {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      playBtn.classList.add("bz-playing");
+    if (hasPolly()) {
+      const audio = getPollyAudio()!;
+      if (audio.paused) { audio.playbackRate = parseFloat(speedSelect.value); audio.play(); }
     } else {
-      startTTS();
+      if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); playBtn.classList.add("bz-playing"); }
+      else { startBrowserTTS(); }
     }
   });
 
   pauseBtn.addEventListener("click", () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.pause();
-      playBtn.classList.remove("bz-playing");
-    }
+    if (hasPolly()) { getPollyAudio()!.pause(); }
+    else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); playBtn.classList.remove("bz-playing"); }
   });
 
   stopBtn.addEventListener("click", () => {
-    window.speechSynthesis.cancel();
+    if (hasPolly()) { const a = getPollyAudio()!; a.pause(); a.currentTime = 0; }
+    else { window.speechSynthesis.cancel(); }
     playBtn.classList.remove("bz-playing");
     progressFill.style.width = "0%";
   });
 
   speedSelect.addEventListener("change", () => {
-    if (window.speechSynthesis.speaking) {
-      startTTS();
+    if (hasPolly() && !getPollyAudio()!.paused) { getPollyAudio()!.playbackRate = parseFloat(speedSelect.value); }
+    else if (window.speechSynthesis.speaking) { startBrowserTTS(); }
+  });
+}
+
+function injectPollyAudio(audioUrl: string) {
+  const backdrop = document.getElementById("bodhi-zen-backdrop");
+  if (!backdrop) return;
+
+  const label = backdrop.querySelector(".bz-tts-loading-label");
+  if (label) label.textContent = "Ready";
+
+  const audio = new Audio(audioUrl);
+  const playBtn = backdrop.querySelector(".bz-tts-play") as HTMLElement;
+  const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
+
+  if (!playBtn) return;
+
+  audio.addEventListener("timeupdate", () => {
+    if (audio.duration > 0 && progressFill) {
+      progressFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
     }
   });
+  audio.addEventListener("ended", () => {
+    playBtn.classList.remove("bz-playing");
+    if (progressFill) progressFill.style.width = "100%";
+  });
+  audio.addEventListener("play", () => playBtn.classList.add("bz-playing"));
+  audio.addEventListener("pause", () => playBtn.classList.remove("bz-playing"));
+
+  (window as any).__bodhiPollyAudio = audio;
+  playBtn.setAttribute("data-polly", "true");
+}
+
+function markTTSReady() {
+  const backdrop = document.getElementById("bodhi-zen-backdrop");
+  if (!backdrop) return;
+  const label = backdrop.querySelector(".bz-tts-loading-label");
+  if (label) label.textContent = "Ready";
 }
 
 function removeZenOverlay() {
   const backdrop = document.getElementById("bodhi-zen-backdrop");
   if (!backdrop) return;
-  window.speechSynthesis.cancel();
+  try { window.speechSynthesis.cancel(); } catch {}
+  const polly = (window as any).__bodhiPollyAudio as HTMLAudioElement | undefined;
+  if (polly) { polly.pause(); delete (window as any).__bodhiPollyAudio; }
   backdrop.classList.add("bz-closing");
   setTimeout(() => backdrop.remove(), 250);
 }
@@ -642,8 +691,29 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
     target: { tabId },
     func: buildZenOverlay,
     world: "MAIN",
-    args: [data, insights, iconUrl],
+    args: [data, insights, iconUrl, undefined],
   });
+
+  if (isAIAvailable() && insights.ttsScript) {
+    callBackendForTTS(insights.ttsScript)
+      .then((ttsResult) => {
+        const audioUrl = `data:${ttsResult.content_type};base64,${ttsResult.audio_base64}`;
+        (chrome.scripting.executeScript as any)({
+          target: { tabId },
+          func: injectPollyAudio,
+          world: "MAIN",
+          args: [audioUrl],
+        });
+      })
+      .catch((err) => {
+        console.warn("[bodhi-leaf] Polly TTS failed, using browser fallback:", err);
+        (chrome.scripting.executeScript as any)({
+          target: { tabId },
+          func: markTTSReady,
+          world: "MAIN",
+        });
+      });
+  }
 }
 
 export function hideZenMode(tabId: number) {

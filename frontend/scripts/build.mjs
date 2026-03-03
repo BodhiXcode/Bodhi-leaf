@@ -1,7 +1,28 @@
 import * as esbuild from "esbuild";
-import { cpSync, rmSync, mkdirSync, existsSync } from "fs";
+import { cpSync, rmSync, mkdirSync, existsSync, readFileSync } from "fs";
 
 const isWatch = process.argv.includes("--watch");
+
+function loadEnv() {
+  const envVars = {};
+  try {
+    const envFile = readFileSync(".env", "utf-8");
+    for (const line of envFile.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      envVars[key] = value;
+    }
+  } catch {
+    console.warn("[bodhi-leaf] .env file not found — AI features will use local fallback");
+  }
+  return envVars;
+}
+
+const env = loadEnv();
 
 function clean() {
   if (existsSync("dist")) {
@@ -28,6 +49,9 @@ const buildOptions = {
   platform: "browser",
   sourcemap: true,
   logLevel: "info",
+  define: {
+    "process.env.API_BASE_URL": JSON.stringify(env.API_BASE_URL || ""),
+  },
 };
 
 clean();

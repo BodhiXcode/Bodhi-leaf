@@ -165,8 +165,9 @@ body {
 }
 
 .btn-icon {
-  font-size: 13px;
   display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
   transition: transform 0.4s ease;
 }
 
@@ -200,6 +201,9 @@ body {
 #close-btn:hover {
   background: rgba(255, 69, 58, 0.15);
   color: #ff453a;
+}
+#close-btn:hover svg {
+  stroke: #ff453a;
 }
 
 #close-btn:active {
@@ -236,15 +240,23 @@ body {
   transform: translateY(0) scale(0.98);
 }
 
+#zen-btn.zen-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+#zen-btn.zen-loading .zen-icon {
+  animation: spin 1s linear infinite;
+}
+
 #zen-btn.zen-active {
   background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
   box-shadow: 0 2px 16px rgba(168, 85, 247, 0.45);
   animation: zen-pulse 2s ease-in-out infinite;
 }
 
-#zen-btn.zen-active .zen-icon::after {
-  content: ' ✕';
-  font-size: 9px;
+#zen-btn.zen-active .zen-icon {
+  opacity: 0.85;
 }
 
 @keyframes zen-pulse {
@@ -259,8 +271,9 @@ body {
 }
 
 .zen-icon {
-  font-size: 12px;
   display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 /* ═══════════════ Status ═══════════════ */
@@ -875,6 +888,56 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.insights-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.insights-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(167, 139, 250, 0.15);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: insights-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes insights-spin {
+  to { transform: rotate(360deg); }
+}
+
+.insights-source {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-top: 4px;
+}
+
+.insights-source--ai {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+}
+
+.insights-source--local {
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.deal-score-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .insights-deal-score {

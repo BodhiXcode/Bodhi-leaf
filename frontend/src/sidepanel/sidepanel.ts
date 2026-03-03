@@ -428,36 +428,11 @@ function populatePanel(data: any, _ratingFilter?: string) {
     }
   }
 
-  // AI Insights
+  // AI Insights (async — show loading, then populate)
   if (cardInsights) {
-    const insights = generateInsights(data);
-    if (insights.pros.length > 0 || insights.cons.length > 0 || insights.dealScore > 0) {
-      revealCard(cardInsights);
-
-      if (insightsDealScore) {
-        const scoreColor = insights.dealScore >= 7 ? "#34c759"
-          : insights.dealScore >= 4 ? "#f5a623" : "#ff453a";
-        insightsDealScore.innerHTML = `
-          <div class="deal-score-badge" style="border-color: ${scoreColor}20">
-            <span class="deal-score-number" style="color: ${scoreColor}">${insights.dealScore}</span>
-            <span class="deal-score-label">/ 10</span>
-          </div>
-          <span class="deal-score-verdict">${escapeHtml(insights.dealVerdict)}</span>
-        `;
-      }
-
-      if (insightsProsList) {
-        insightsProsList.innerHTML = insights.pros.length > 0
-          ? insights.pros.map(p => `<li>${escapeHtml(p)}</li>`).join("")
-          : `<li class="insight-empty">No strong positives detected</li>`;
-      }
-
-      if (insightsConsList) {
-        insightsConsList.innerHTML = insights.cons.length > 0
-          ? insights.cons.map(c => `<li>${escapeHtml(c)}</li>`).join("")
-          : `<li class="insight-empty">No significant negatives detected</li>`;
-      }
-    }
+    revealCard(cardInsights);
+    showInsightsLoading();
+    loadInsightsAsync(data);
   }
 
   // Reviews
@@ -503,8 +478,73 @@ function populatePanel(data: any, _ratingFilter?: string) {
   }
 }
 
+// ── AI Insights helpers ──
+
+let cachedInsights: Awaited<ReturnType<typeof generateInsights>> | null = null;
+
+function showInsightsLoading() {
+  if (insightsDealScore) {
+    insightsDealScore.innerHTML = `
+      <div class="insights-loading">
+        <div class="insights-loading-spinner"></div>
+        <span>Analyzing with AI…</span>
+      </div>
+    `;
+  }
+  if (insightsProsList) insightsProsList.innerHTML = "";
+  if (insightsConsList) insightsConsList.innerHTML = "";
+}
+
+function renderInsights(insights: Awaited<ReturnType<typeof generateInsights>>) {
+  const sourceText = insights.source === "local" ? "Local" : "AWS Bedrock";
+  const sourceLabel = insights.source !== "local"
+    ? `<span class="insights-source insights-source--ai">${sourceText}</span>`
+    : '<span class="insights-source insights-source--local">Local</span>';
+
+  if (insightsDealScore) {
+    const scoreColor = insights.dealScore >= 7 ? "#34c759"
+      : insights.dealScore >= 4 ? "#f5a623" : "#ff453a";
+    insightsDealScore.innerHTML = `
+      <div class="deal-score-badge" style="border-color: ${scoreColor}20">
+        <span class="deal-score-number" style="color: ${scoreColor}">${insights.dealScore}</span>
+        <span class="deal-score-label">/ 10</span>
+      </div>
+      <div class="deal-score-info">
+        <span class="deal-score-verdict">${escapeHtml(insights.dealVerdict)}</span>
+        ${sourceLabel}
+      </div>
+    `;
+  }
+
+  if (insightsProsList) {
+    insightsProsList.innerHTML = insights.pros.length > 0
+      ? insights.pros.map(p => `<li>${escapeHtml(p)}</li>`).join("")
+      : `<li class="insight-empty">No strong positives detected</li>`;
+  }
+
+  if (insightsConsList) {
+    insightsConsList.innerHTML = insights.cons.length > 0
+      ? insights.cons.map(c => `<li>${escapeHtml(c)}</li>`).join("")
+      : `<li class="insight-empty">No significant negatives detected</li>`;
+  }
+}
+
+async function loadInsightsAsync(data: any) {
+  try {
+    const insights = await generateInsights(data);
+    cachedInsights = insights;
+    renderInsights(insights);
+  } catch (err) {
+    console.error("[bodhi-leaf] Insights generation failed:", err);
+    if (insightsDealScore) {
+      insightsDealScore.innerHTML = `<span class="insight-empty">Could not generate insights</span>`;
+    }
+  }
+}
+
 // ── Zen Mode ──
 let zenActive = false;
+let zenLoading = false;
 
 function setZenEnabled(enabled: boolean) {
   if (!zenBtn) return;
@@ -517,22 +557,36 @@ function setZenEnabled(enabled: boolean) {
   }
 }
 
-function toggleZenMode() {
-  if (!lastScanData || !lastScanTabId) return;
+async function toggleZenMode() {
+  if (!lastScanData || !lastScanTabId || zenLoading) return;
+
   if (zenActive) {
     hideZenMode(lastScanTabId);
     zenActive = false;
     zenBtn?.classList.remove("zen-active");
-  } else {
-    const insights = generateInsights(lastScanData);
+    return;
+  }
+
+  zenLoading = true;
+  zenBtn?.classList.add("zen-loading");
+
+  try {
+    const insights = cachedInsights || await generateInsights(lastScanData);
+    cachedInsights = insights;
     showZenMode(lastScanTabId, lastScanData, insights);
     zenActive = true;
     zenBtn?.classList.add("zen-active");
+  } catch (err) {
+    console.error("[bodhi-leaf] Zen mode insights failed:", err);
+  } finally {
+    zenLoading = false;
+    zenBtn?.classList.remove("zen-loading");
   }
 }
 
 // ── Init ──
 loadBtn?.addEventListener("click", () => {
+  cachedInsights = null;
   requestPageData();
 });
 
