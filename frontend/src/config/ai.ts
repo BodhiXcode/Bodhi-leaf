@@ -10,6 +10,12 @@ export interface StarBreakdown {
   topIssue: string;
 }
 
+export interface SpecExplained {
+  label: string;
+  original: string;
+  layman: string;
+}
+
 export interface AIInsightsResponse {
   summary: string;
   pros: string[];
@@ -20,6 +26,8 @@ export interface AIInsightsResponse {
   sellerVsProduct: string;
   sellerAdvice: string;
   newVersionAlert: string;
+  specsExplained: SpecExplained[];
+  chatSuggestions: string[];
   source: string;
 }
 
@@ -93,4 +101,39 @@ export interface ChatResponse {
 
 export async function callBackendForChat(product: any, history: ChatMessage[], message: string): Promise<ChatResponse> {
   return apiFetch<ChatResponse>("/api/chat", { product, history, message }, INSIGHTS_TIMEOUT_MS);
+}
+
+export interface QuizOption {
+  label: string;
+  value: string;
+}
+
+export interface QuizQuestionData {
+  id: string;
+  question: string;
+  options: QuizOption[];
+}
+
+export async function callBackendForQuiz(product: any): Promise<QuizQuestionData[]> {
+  const result = await apiFetch<{ questions: QuizQuestionData[] }>("/api/quiz", { product }, INSIGHTS_TIMEOUT_MS);
+  return result.questions || [];
+}
+
+export interface TranslateResponse {
+  translated: string;
+  target_lang: string;
+}
+
+export async function callBackendForTranslation(text: string, targetLang = "hi"): Promise<TranslateResponse> {
+  return apiFetch<TranslateResponse>("/api/translate", { text, target_lang: targetLang }, INSIGHTS_TIMEOUT_MS);
+}
+
+export interface RecommendationResponse {
+  tips: string[];
+  lookFor: string[];
+  avoid: string[];
+}
+
+export async function callBackendForRecommendations(product: any, preferences: Record<string, string>): Promise<RecommendationResponse> {
+  return apiFetch<RecommendationResponse>("/api/recommendations", { product, preferences }, INSIGHTS_TIMEOUT_MS);
 }

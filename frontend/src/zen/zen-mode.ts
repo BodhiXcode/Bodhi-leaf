@@ -1,5 +1,5 @@
 import type { ZenInsights } from "./zen-insights";
-import { callBackendForTTS, isAIAvailable } from "../config/ai";
+import { callBackendForTTS, callBackendForQuiz, callBackendForTranslation, isAIAvailable } from "../config/ai";
 
 function getZenCSS(): string {
   return `
@@ -393,6 +393,21 @@ function getZenCSS(): string {
   }
   .bz-tts-speed:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
   .bz-tts-speed option { background: #1a1a24; color: #a0a0ab; }
+  .bz-tts-lang-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    color: #a0a0ab;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-top: 6px;
+  }
+  .bz-tts-lang-btn:hover { background: rgba(255,255,255,0.1); color: #f0f0f5; }
+  .bz-tts-lang-btn.active { background: rgba(0,230,200,0.15); border-color: rgba(0,230,200,0.3); color: #00e6c8; }
 
   /* ── Deal Score ── */
   .bz-deal-score {
@@ -1011,7 +1026,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
 
         <!-- TTS Controls: smaller cell -->
         <div class="bz-section bz-col-2">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback</div>
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback <span class="bz-tts-loading-label">Loading voice…</span></div>
           <div class="bz-tts-controls">
             <button class="bz-tts-toggle" title="Play / Pause">
               <svg class="bz-icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
@@ -1027,6 +1042,9 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
             <option value="1.5">1.5×</option>
             <option value="2">2×</option>
           </select>
+          <button class="bz-tts-lang-btn" data-lang="en" title="Switch to Hindi voice">
+            🇮🇳 हिंदी
+          </button>
         </div>
 
         <!-- Seller Analysis: smaller cell -->
@@ -1251,8 +1269,19 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
   toggleBtn.addEventListener("click", () => {
     if (hasPolly()) {
       const audio = getPollyAudio()!;
-      if (audio.paused) { audio.playbackRate = parseFloat(speedSelect.value); audio.play(); }
-      else { audio.pause(); }
+      if (audio.paused) {
+        audio.playbackRate = parseFloat(speedSelect.value);
+        const p = audio.play();
+        if (p && typeof p.catch === "function") {
+          p.catch(() => {
+            console.warn("[bodhi-leaf] Polly play failed, using browser TTS");
+            toggleBtn.removeAttribute("data-polly");
+            startBrowserTTS();
+          });
+        }
+      } else {
+        audio.pause();
+      }
     } else {
       if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); setPlaying(true); }
       else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); setPlaying(false); }
@@ -1272,6 +1301,55 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     else if (window.speechSynthesis.speaking) { startBrowserTTS(); }
   });
 
+  // Hindi language toggle
+  const langBtn = backdrop.querySelector(".bz-tts-lang-btn") as HTMLElement | null;
+  let isHindiMode = false;
+  langBtn?.addEventListener("click", () => {
+    // Stop current playback
+    if (hasPolly()) { const a = getPollyAudio()!; a.pause(); a.currentTime = 0; }
+    else { window.speechSynthesis.cancel(); }
+    setPlaying(false);
+    progressFill.style.width = "0%";
+
+    isHindiMode = !isHindiMode;
+    if (isHindiMode) {
+      langBtn.classList.add("active");
+      langBtn.textContent = "🇬🇧 English";
+      const cached = (window as any).__bodhiPollyAudioHindi;
+      if (cached) {
+        cached.currentTime = 0;
+        (window as any).__bodhiPollyAudio = cached;
+        toggleBtn.setAttribute("data-polly", "true");
+      } else {
+        const hindiUrl = (backdrop as any).__bodhiHindiAudioUrl;
+        if (hindiUrl) {
+          const hindiAudio = new Audio();
+          hindiAudio.addEventListener("canplaythrough", () => {
+            (window as any).__bodhiPollyAudioHindi = hindiAudio;
+            (window as any).__bodhiPollyAudio = hindiAudio;
+            toggleBtn.setAttribute("data-polly", "true");
+          }, { once: true });
+          hindiAudio.addEventListener("play", () => setPlaying(true));
+          hindiAudio.addEventListener("pause", () => setPlaying(false));
+          hindiAudio.addEventListener("ended", () => { setPlaying(false); progressFill.style.width = "100%"; });
+          hindiAudio.addEventListener("timeupdate", () => {
+            if (hindiAudio.duration > 0) progressFill.style.width = `${(hindiAudio.currentTime / hindiAudio.duration) * 100}%`;
+          });
+          hindiAudio.src = hindiUrl;
+          hindiAudio.load();
+        }
+      }
+    } else {
+      langBtn.classList.remove("active");
+      langBtn.textContent = "🇮🇳 हिंदी";
+      const originalAudio = (window as any).__bodhiPollyAudioEn;
+      if (originalAudio) {
+        (window as any).__bodhiPollyAudio = originalAudio;
+        toggleBtn.setAttribute("data-polly", "true");
+      }
+    }
+  });
+
   // ── Preference Quiz (flash-card MCQ) ──
   const quizContainer = backdrop.querySelector(".bz-quiz-cards") as HTMLElement;
   const quizResult = backdrop.querySelector(".bz-quiz-result") as HTMLElement;
@@ -1279,9 +1357,34 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
   const quizResetBtn = backdrop.querySelector(".bz-quiz-reset") as HTMLButtonElement | null;
   if (quizContainer) {
     const category = detectCategory(data);
-    const questions = getQuizQuestions(category, data);
+    let questions = getQuizQuestions(category, data);
     const answers: Record<string, string> = {};
     const STORAGE_KEY = "__bodhiPrefs";
+
+    // Show loading state while AI questions are fetched
+    quizContainer.innerHTML = '<div class="bz-quiz-loading" style="font-size:11px;color:#5c5c66;padding:8px 0;">Generating personalized questions...</div>';
+
+    // Listen for AI-generated questions
+    backdrop.addEventListener("bodhi-quiz-ready", ((e: CustomEvent) => {
+      const aiQuestions = e.detail;
+      if (aiQuestions && aiQuestions.length > 0) {
+        questions = aiQuestions;
+        const loadingEl = quizContainer.querySelector(".bz-quiz-loading");
+        if (loadingEl) loadingEl.remove();
+        if (quizResult.style.display !== "block") {
+          showQuestion(0);
+        }
+      }
+    }) as EventListener);
+
+    // Fallback: if no AI quiz arrives within 8s, use hardcoded
+    setTimeout(() => {
+      const loadingEl = quizContainer.querySelector(".bz-quiz-loading");
+      if (loadingEl) {
+        loadingEl.remove();
+        showQuestion(0);
+      }
+    }, 8000);
 
     type PrefStore = Record<string, Record<string, string>>;
     const stored: PrefStore = (() => {
@@ -1296,7 +1399,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     })();
 
     const savedForCategory = stored[category] || {};
-    let hasSavedPrefs = Object.keys(savedForCategory).length >= questions.length;
+    const hasSavedPrefs = Object.keys(savedForCategory).length >= questions.length;
 
     function saveStore() {
       try {
@@ -1309,8 +1412,6 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     if (hasSavedPrefs) {
       Object.assign(answers, savedForCategory);
       showGraph();
-    } else {
-      showQuestion(0);
     }
 
     function showQuestion(idx: number) {
@@ -1396,13 +1497,23 @@ function injectPollyAudio(audioUrl: string) {
   if (!backdrop) return;
 
   const label = backdrop.querySelector(".bz-tts-loading-label");
-  if (label) label.textContent = "Ready";
-
-  const audio = new Audio(audioUrl);
   const toggleBtn = backdrop.querySelector(".bz-tts-toggle") as HTMLElement;
   const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
-
   if (!toggleBtn) return;
+
+  const audio = new Audio();
+
+  audio.addEventListener("canplaythrough", () => {
+    (window as any).__bodhiPollyAudio = audio;
+    (window as any).__bodhiPollyAudioEn = audio;
+    toggleBtn.setAttribute("data-polly", "true");
+    if (label) label.textContent = "Ready";
+  }, { once: true });
+
+  audio.addEventListener("error", () => {
+    console.warn("[bodhi-leaf] Polly audio failed to load, browser TTS will be used");
+    if (label) label.textContent = "Ready (browser)";
+  });
 
   audio.addEventListener("timeupdate", () => {
     if (audio.duration > 0 && progressFill) {
@@ -1416,8 +1527,8 @@ function injectPollyAudio(audioUrl: string) {
   audio.addEventListener("play", () => toggleBtn.classList.add("bz-playing"));
   audio.addEventListener("pause", () => toggleBtn.classList.remove("bz-playing"));
 
-  (window as any).__bodhiPollyAudio = audio;
-  toggleBtn.setAttribute("data-polly", "true");
+  audio.src = audioUrl;
+  audio.load();
 }
 
 function markTTSReady() {
@@ -1425,6 +1536,29 @@ function markTTSReady() {
   if (!backdrop) return;
   const label = backdrop.querySelector(".bz-tts-loading-label");
   if (label) label.textContent = "Ready";
+}
+
+function injectHindiAudio(audioUrl: string) {
+  const backdrop = document.getElementById("bodhi-zen-backdrop");
+  if (!backdrop) return;
+  (backdrop as any).__bodhiHindiAudioUrl = audioUrl;
+  const langBtn = backdrop.querySelector(".bz-tts-lang-btn");
+  if (langBtn) langBtn.classList.add("ready");
+}
+
+function injectQuizQuestions(questions: any[]) {
+  const backdrop = document.getElementById("bodhi-zen-backdrop");
+  if (!backdrop) return;
+  const quizCards = backdrop.querySelector(".bz-quiz-cards") as HTMLElement;
+  if (!quizCards) return;
+
+  (window as any).__bodhiAIQuiz = questions;
+
+  const loadingEl = quizCards.querySelector(".bz-quiz-loading");
+  if (loadingEl) loadingEl.remove();
+
+  const event = new CustomEvent("bodhi-quiz-ready", { detail: questions });
+  backdrop.dispatchEvent(event);
 }
 
 function removeZenOverlay() {
@@ -1454,8 +1588,26 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
     target: { tabId },
     func: buildZenOverlay,
     world: "MAIN",
-    args: [safeData, safeInsights, iconUrl, null],
+    args: [safeData, safeInsights, iconUrl, null, null],
   });
+
+  // Fetch AI quiz questions async, inject when ready
+  if (isAIAvailable()) {
+    callBackendForQuiz(safeData)
+      .then((questions) => {
+        if (questions.length > 0) {
+          (chrome.scripting.executeScript as any)({
+            target: { tabId },
+            func: injectQuizQuestions,
+            world: "MAIN",
+            args: [JSON.parse(JSON.stringify(questions))],
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("[bodhi-leaf] AI quiz generation failed, using defaults:", err);
+      });
+  }
 
   if (isAIAvailable() && insights.ttsScript) {
     callBackendForTTS(insights.ttsScript)
@@ -1475,6 +1627,24 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
           func: markTTSReady,
           world: "MAIN",
         });
+      });
+  }
+
+  // Pre-fetch Hindi translation + TTS in background
+  if (isAIAvailable() && insights.ttsScript) {
+    callBackendForTranslation(insights.ttsScript, "hi")
+      .then(async (tr) => {
+        const hindiTts = await callBackendForTTS(tr.translated, "Kajal", "generative");
+        const hindiUrl = `data:${hindiTts.content_type};base64,${hindiTts.audio_base64}`;
+        (chrome.scripting.executeScript as any)({
+          target: { tabId },
+          func: injectHindiAudio,
+          world: "MAIN",
+          args: [hindiUrl],
+        });
+      })
+      .catch((err) => {
+        console.warn("[bodhi-leaf] Hindi TTS pre-fetch failed:", err);
       });
   }
 }

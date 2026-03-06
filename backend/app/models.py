@@ -51,6 +51,12 @@ class StarBreakdown(BaseModel):
     topIssue: str = ""
 
 
+class SpecExplained(BaseModel):
+    label: str
+    original: str
+    layman: str
+
+
 class InsightsResponse(BaseModel):
     summary: str
     pros: list[str]
@@ -61,6 +67,8 @@ class InsightsResponse(BaseModel):
     sellerVsProduct: str = ""
     sellerAdvice: str = ""
     newVersionAlert: str = ""
+    specsExplained: list[SpecExplained] = Field(default_factory=list)
+    chatSuggestions: list[str] = Field(default_factory=list)
     source: str = "bedrock"
 
 
@@ -94,3 +102,43 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+
+
+class QuizOption(BaseModel):
+    label: str
+    value: str
+
+
+class QuizQuestion(BaseModel):
+    id: str
+    question: str
+    options: list[QuizOption]
+
+
+class QuizRequest(BaseModel):
+    product: ProductData
+
+
+class QuizResponse(BaseModel):
+    questions: list[QuizQuestion]
+
+
+class TranslateRequest(BaseModel):
+    text: str = Field(..., max_length=5000)
+    target_lang: str = "hi"
+
+
+class TranslateResponse(BaseModel):
+    translated: str
+    target_lang: str
+
+
+class RecommendationRequest(BaseModel):
+    product: ProductData
+    preferences: dict = Field(default_factory=dict)
+
+
+class RecommendationResponse(BaseModel):
+    tips: list[str] = Field(default_factory=list)
+    lookFor: list[str] = Field(default_factory=list)
+    avoid: list[str] = Field(default_factory=list)

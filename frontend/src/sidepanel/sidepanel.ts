@@ -23,22 +23,27 @@ const cardReviews = document.getElementById("card-reviews");
 const cardSpecs = document.getElementById("card-specs");
 const cardSeller = document.getElementById("card-seller");
 
-// Accordion + chat DOM
-const accordionBody = document.getElementById("product-accordion-body");
-const accordionHeader = document.getElementById("product-accordion-header");
-const chatSection = document.getElementById("product-chat");
+// Chat overlay DOM
+const chatFab = document.getElementById("chat-fab") as HTMLButtonElement | null;
+const chatOverlay = document.getElementById("chat-overlay");
+const chatOverlayClose = document.getElementById("chat-overlay-close") as HTMLButtonElement | null;
+const chatBadge = document.getElementById("chat-badge");
 const chatMessagesEl = document.getElementById("chat-messages");
 const chatForm = document.getElementById("chat-form") as HTMLFormElement | null;
 const chatInput = document.getElementById("chat-input") as HTMLInputElement | null;
 const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
 const chatHint = document.getElementById("chat-hint");
+const chatSuggestions = document.getElementById("chat-suggestions");
+const reviewSearch = document.getElementById("review-search") as HTMLInputElement | null;
 const profileSection = document.getElementById("user-profile");
 const profileBody = document.getElementById("user-profile-body");
 const profileResetBtn = document.getElementById("profile-reset-btn") as HTMLButtonElement | null;
 // Tabs
-const tabHomeBtn = document.getElementById("tab-home-btn") as HTMLButtonElement | null;
+const tabInsightsBtn = document.getElementById("tab-insights-btn") as HTMLButtonElement | null;
+const tabDetailsBtn = document.getElementById("tab-details-btn") as HTMLButtonElement | null;
 const tabProfileBtn = document.getElementById("tab-profile-btn") as HTMLButtonElement | null;
-const tabHome = document.getElementById("tab-home");
+const tabInsights = document.getElementById("tab-insights");
+const tabDetails = document.getElementById("tab-details");
 const tabProfile = document.getElementById("tab-profile");
 
 const valImage = document.getElementById("val-image") as HTMLImageElement | null;
@@ -74,16 +79,37 @@ const STAGGER_DELAY = 0.07;
 // ── State ──
 let lastScanData: any = null;
 let lastScanTabId: number | null = null;
+let lastProductUrl: string = "";
 let chatHistory: ChatMessage[] = [];
 let isChatSending = false;
 let hasAutoScanned = false;
 
-function ensureAccordionCollapsed() {
-  if (!accordionHeader || !accordionBody) return;
-  accordionHeader.setAttribute("aria-expanded", "false");
-  if (!accordionBody.classList.contains("collapsed")) {
-    accordionBody.classList.add("collapsed");
-  }
+function chatStorageKey(url: string): string {
+  const match = url.match(/\/dp\/([A-Z0-9]+)/i) || url.match(/\/gp\/product\/([A-Z0-9]+)/i);
+  return match ? `chat_${match[1]}` : "";
+}
+
+function saveChatHistory() {
+  const key = chatStorageKey(lastProductUrl);
+  if (!key || chatHistory.length === 0) return;
+  chrome.storage.local.set({ [key]: chatHistory.slice(-40) });
+}
+
+function loadChatHistory(url: string) {
+  const key = chatStorageKey(url);
+  if (!key) return;
+  chrome.storage.local.get(key, (result) => {
+    const saved: ChatMessage[] = result[key] || [];
+    if (saved.length > 0) {
+      chatHistory = saved;
+      if (chatMessagesEl) {
+        chatMessagesEl.innerHTML = "";
+        for (const msg of saved) {
+          appendChatMessage(msg.role, msg.content);
+        }
+      }
+    }
+  });
 }
 
 // ── Helpers ──
@@ -170,12 +196,60 @@ function clearPanel() {
   // Clear chat
   chatHistory = [];
   if (chatMessagesEl) chatMessagesEl.innerHTML = "";
-  if (chatSection) {
-    chatSection.style.display = "none";
+  if (chatSuggestions) chatSuggestions.innerHTML = "";
+}
+
+function renderChatSuggestions(suggestions: string[]) {
+  if (!chatSuggestions || !suggestions.length) return;
+  chatSuggestions.innerHTML = suggestions
+    .map(s => `<button class="chat-suggestion-chip">${escapeHtml(s)}</button>`)
+    .join("");
+  chatSuggestions.querySelectorAll(".chat-suggestion-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const text = (btn as HTMLElement).textContent || "";
+      if (chatInput) chatInput.value = text;
+      handleChatSubmit(text);
+      if (chatSuggestions) chatSuggestions.innerHTML = "";
+    });
+  });
+}
+
+let allReviewsHtml: string[] = [];
+let allReviewsData: { stars: number; text: string; html: string }[] = [];
+
+function filterReviews(sentiment: string, keyword: string) {
+  if (!valReviews) return;
+  let filtered = allReviewsData;
+
+  if (sentiment === "positive") {
+    filtered = filtered.filter(r => r.stars >= 4);
+  } else if (sentiment === "negative") {
+    filtered = filtered.filter(r => r.stars <= 3);
   }
 
-  // Keep product info collapsed by default after a clear
-  ensureAccordionCollapsed();
+  if (keyword) {
+    const kw = keyword.toLowerCase();
+    filtered = filtered.filter(r => r.text.toLowerCase().includes(kw));
+  }
+
+  if (filtered.length === 0) {
+    valReviews.innerHTML = `<div class="review-empty">No reviews match your filter.</div>`;
+  } else {
+    valReviews.innerHTML = filtered.map(r => r.html).join("");
+    bindReviewToggles();
+  }
+}
+
+function bindReviewToggles() {
+  if (!valReviews) return;
+  valReviews.querySelectorAll(".review-toggle").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const review = (e.currentTarget as HTMLElement).parentElement;
+      if (!review) return;
+      const expanded = review.classList.toggle("review--expanded");
+      (e.currentTarget as HTMLElement).textContent = expanded ? "Show less" : "Show more";
+    });
+  });
 }
 
 type PrefStore = Record<string, Record<string, string>>;
@@ -395,11 +469,37 @@ function requestPageData(ratingFilter?: string) {
     }
 
     const tabUrl = tabs[0].url || "";
+    const competitorSites = [
+      { pattern: "flipkart.", name: "Flipkart" },
+      { pattern: "myntra.", name: "Myntra" },
+      { pattern: "snapdeal.", name: "Snapdeal" },
+      { pattern: "meesho.", name: "Meesho" },
+      { pattern: "ajio.", name: "AJIO" },
+      { pattern: "jiomart.", name: "JioMart" },
+    ];
+    const matchedSite = competitorSites.find(s => tabUrl.includes(s.pattern));
+
+    if (matchedSite) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus(`<span class="status-icon">🚧</span><strong>${matchedSite.name}</strong> support is coming soon!<br>Bodhi Leaf currently works on <strong>Amazon</strong> product pages.`);
+      return;
+    }
+
     if (!tabUrl.includes("amazon.")) {
       isScanning = false;
       setScanning(false);
       hideSkeleton();
       showStatus('<span class="status-icon">🛒</span>Bodhi Leaf works on <strong>Amazon</strong> product pages.<br>Navigate to a product and try again.');
+      return;
+    }
+
+    if (!tabUrl.includes("/dp/") && !tabUrl.includes("/gp/product/") && !tabUrl.includes("/product/")) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus('<span class="status-icon">📦</span>Navigate to a specific <strong>product page</strong> on Amazon to scan it.');
       return;
     }
 
@@ -507,14 +607,12 @@ function requestPageData(ratingFilter?: string) {
         if (results && results[0]?.result) {
           lastScanData = results[0].result;
           lastScanTabId = tabId;
+          lastProductUrl = tabUrl;
           populatePanel(results[0].result, ratingFilter);
           setZenEnabled(true);
           container?.scrollTo({ top: 0, behavior: "smooth" });
-          // Auto-open Zen Mode on first successful scan
-          if (!zenActive) {
-            toggleZenMode();
-          }
           loadUserProfileFromTab();
+          loadChatHistory(tabUrl);
         } else {
           lastScanData = null;
           lastScanTabId = null;
@@ -663,9 +761,9 @@ function populatePanel(data: any, _ratingFilter?: string) {
   // Reviews
   if (data.reviews?.length && cardReviews && valReviews) {
     revealCard(cardReviews);
-    valReviews.innerHTML = data.reviews.slice(0, MAX_REVIEWS).map((r: any) => {
+    allReviewsData = data.reviews.slice(0, MAX_REVIEWS).map((r: any) => {
       const starNum = parseRatingNumber(r.stars);
-      const stars = starNum > 0
+      const starsHtml = starNum > 0
         ? `<div class="review-stars">${renderStars(starNum)} ${starNum.toFixed(1)}</div>`
         : "";
       const title = r.title ? `<div class="review-title-text">${escapeHtml(r.title)}</div>` : "";
@@ -674,18 +772,13 @@ function populatePanel(data: any, _ratingFilter?: string) {
       const meta = (author || date) ? `<div class="review-meta">${author}${date}</div>` : "";
       const body = r.body ? `<div class="review-body-text">${escapeHtml(r.body)}</div>` : "";
       const needsToggle = (r.body?.length || 0) > REVIEW_TRUNCATE_LENGTH;
-      const toggle = needsToggle ? `<button class="review-toggle">Show more ↓</button>` : "";
-      return `<div class="review">${stars}${title}${meta}${body}${toggle}</div>`;
-    }).join("");
-
-    Array.from(valReviews.querySelectorAll(".review-toggle")).forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const review = (e.currentTarget as HTMLElement).parentElement;
-        if (!review) return;
-        const expanded = review.classList.toggle("review--expanded");
-        (e.currentTarget as HTMLElement).textContent = expanded ? "Show less ↑" : "Show more ↓";
-      });
+      const toggle = needsToggle ? `<button class="review-toggle">Show more</button>` : "";
+      const html = `<div class="review">${starsHtml}${title}${meta}${body}${toggle}</div>`;
+      return { stars: starNum, text: `${r.title || ""} ${r.body || ""}`, html };
     });
+
+    valReviews.innerHTML = allReviewsData.map(r => r.html).join("");
+    bindReviewToggles();
   }
 
   // Tech specs
@@ -702,17 +795,8 @@ function populatePanel(data: any, _ratingFilter?: string) {
     valSeller.innerHTML = `<span class="seller-badge">${escapeHtml(data.seller)}</span>`;
   }
 
-  // Show chat section when AI backend is available
-  if (chatSection) {
-    if (isAIAvailable()) {
-      chatSection.style.display = "block";
-      if (chatHint) {
-        chatHint.textContent = "Chat is powered by AWS Bedrock and is scoped only to this product.";
-      }
-    } else {
-      chatSection.style.display = "none";
-    }
-  }
+  // Stay on Details tab after scan (default landing view)
+  switchToTab("details");
 }
 
 // ── AI Insights helpers ──
@@ -764,6 +848,31 @@ function renderInsights(insights: Awaited<ReturnType<typeof generateInsights>>) 
       ? insights.cons.map(c => `<li>${escapeHtml(c)}</li>`).join("")
       : `<li class="insight-empty">No significant negatives detected</li>`;
   }
+
+  // Layman spec explanations
+  const specsExplained = (insights as any).specsExplained || [];
+  if (specsExplained.length > 0 && insightsDealScore?.parentElement) {
+    let existingSpecs = insightsDealScore.parentElement.querySelector(".specs-layman");
+    if (existingSpecs) existingSpecs.remove();
+    const section = document.createElement("div");
+    section.className = "specs-layman";
+    section.innerHTML = `
+      <div class="specs-layman-title">What the specs mean</div>
+      ${specsExplained.map((s: any) => `
+        <div class="spec-layman-row">
+          <span class="spec-layman-label">${escapeHtml(s.label)}</span>
+          <span class="spec-layman-original">${escapeHtml(s.original)}</span>
+          <span class="spec-layman-explain">${escapeHtml(s.layman)}</span>
+        </div>
+      `).join("")}
+    `;
+    insightsDealScore.parentElement.appendChild(section);
+  }
+
+  // Chat suggestions from AI
+  if ((insights as any).chatSuggestions?.length) {
+    renderChatSuggestions((insights as any).chatSuggestions);
+  }
 }
 
 async function loadInsightsAsync(data: any) {
@@ -794,10 +903,28 @@ function setZenEnabled(enabled: boolean) {
   }
 }
 
+function syncZenState(tabId: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => !!document.getElementById("bodhi-zen-backdrop"),
+    }, (results: any) => {
+      resolve(results?.[0]?.result === true);
+    });
+  });
+}
+
 async function toggleZenMode() {
   if (!lastScanData || !lastScanTabId || zenLoading) return;
 
-  if (zenActive) {
+  const overlayExists = await syncZenState(lastScanTabId);
+  if (zenActive && !overlayExists) {
+    zenActive = false;
+    zenBtn?.classList.remove("zen-active");
+  }
+
+  if (zenActive || overlayExists) {
     hideZenMode(lastScanTabId);
     zenActive = false;
     zenBtn?.classList.remove("zen-active");
@@ -822,28 +949,35 @@ async function toggleZenMode() {
 }
 
 // ── Init ──
-// Start with product info collapsed in the sidepanel
-ensureAccordionCollapsed();
 
 // Tab switching
-function switchToTab(tab: "home" | "profile") {
-  if (tab === "home") {
-    tabHomeBtn?.classList.add("active");
-    tabHomeBtn?.setAttribute("aria-selected", "true");
-    tabProfileBtn?.classList.remove("active");
-    tabProfileBtn?.setAttribute("aria-selected", "false");
-    if (tabHome) tabHome.style.display = "block";
-    if (tabProfile) tabProfile.style.display = "none";
-  } else {
-    tabHomeBtn?.classList.remove("active");
-    tabHomeBtn?.setAttribute("aria-selected", "false");
-    tabProfileBtn?.classList.add("active");
-    tabProfileBtn?.setAttribute("aria-selected", "true");
-    if (tabHome) tabHome.style.display = "none";
-    if (tabProfile) tabProfile.style.display = "block";
-    // load profile when profile tab is shown
-    loadUserProfileFromTab();
+type TabName = "insights" | "details" | "profile";
+const tabBtns: Record<TabName, HTMLButtonElement | null> = {
+  insights: tabInsightsBtn,
+  details: tabDetailsBtn,
+  profile: tabProfileBtn,
+};
+const tabPanes: Record<TabName, HTMLElement | null> = {
+  insights: tabInsights,
+  details: tabDetails,
+  profile: tabProfile,
+};
+
+function switchToTab(tab: TabName) {
+  for (const key of Object.keys(tabBtns) as TabName[]) {
+    const btn = tabBtns[key];
+    const pane = tabPanes[key];
+    if (key === tab) {
+      btn?.classList.add("active");
+      btn?.setAttribute("aria-selected", "true");
+      if (pane) pane.style.display = "block";
+    } else {
+      btn?.classList.remove("active");
+      btn?.setAttribute("aria-selected", "false");
+      if (pane) pane.style.display = "none";
+    }
   }
+  if (tab === "profile") loadUserProfileFromTab();
 }
 
 loadBtn?.addEventListener("click", () => {
@@ -866,7 +1000,8 @@ if (!hasAutoScanned) {
   requestPageData();
 }
 
-tabHomeBtn?.addEventListener("click", () => switchToTab("home"));
+tabInsightsBtn?.addEventListener("click", () => switchToTab("insights"));
+tabDetailsBtn?.addEventListener("click", () => switchToTab("details"));
 tabProfileBtn?.addEventListener("click", () => switchToTab("profile"));
 
 // Insights refresh button - re-generate AI insights
@@ -910,18 +1045,34 @@ profileResetBtn?.addEventListener("click", () => {
   });
 });
 
-// Accordion toggle
-accordionHeader?.addEventListener("click", () => {
-  if (!accordionBody) return;
-  const expanded = accordionHeader.getAttribute("aria-expanded") === "true";
-  const nextExpanded = !expanded;
-  accordionHeader.setAttribute("aria-expanded", String(nextExpanded));
-  if (nextExpanded) {
-    accordionBody.classList.remove("collapsed");
-  } else {
-    accordionBody.classList.add("collapsed");
+// ── Chat FAB + Overlay ──
+let chatOverlayOpen = false;
+let unreadCount = 0;
+
+function toggleChatOverlay(open?: boolean) {
+  const shouldOpen = open !== undefined ? open : !chatOverlayOpen;
+  chatOverlayOpen = shouldOpen;
+  if (chatOverlay) chatOverlay.style.display = shouldOpen ? "flex" : "none";
+  chatFab?.classList.toggle("chat-fab--open", shouldOpen);
+  if (shouldOpen) {
+    unreadCount = 0;
+    if (chatBadge) chatBadge.style.display = "none";
+    chatInput?.focus();
+    if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
   }
-});
+}
+
+chatFab?.addEventListener("click", () => toggleChatOverlay());
+chatOverlayClose?.addEventListener("click", () => toggleChatOverlay(false));
+
+function incrementUnread() {
+  if (chatOverlayOpen) return;
+  unreadCount++;
+  if (chatBadge) {
+    chatBadge.textContent = String(unreadCount);
+    chatBadge.style.display = "flex";
+  }
+}
 
 // Chat helpers
 function appendChatMessage(role: "user" | "assistant" | "error", text: string) {
@@ -952,6 +1103,8 @@ async function handleChatSubmit(message: string) {
     const answer = response.answer ?? "";
     appendChatMessage("assistant", answer);
     chatHistory.push({ role: "assistant", content: answer });
+    saveChatHistory();
+    incrementUnread();
   } catch (err) {
     console.error("[bodhi-leaf] Chat failed:", err);
     appendChatMessage("error", "Sorry, the product chat is unavailable right now. Please try again in a moment.");
@@ -967,4 +1120,19 @@ chatForm?.addEventListener("submit", (e) => {
   if (!value.trim()) return;
   if (chatInput) chatInput.value = "";
   handleChatSubmit(value);
+});
+
+// Review filtering
+let currentSentiment = "all";
+reviewSearch?.addEventListener("input", () => {
+  filterReviews(currentSentiment, reviewSearch.value);
+});
+
+document.querySelectorAll(".review-sentiment-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".review-sentiment-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentSentiment = (btn as HTMLElement).dataset.sentiment || "all";
+    filterReviews(currentSentiment, reviewSearch?.value || "");
+  });
 });

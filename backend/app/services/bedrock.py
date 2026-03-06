@@ -6,13 +6,13 @@ from functools import lru_cache
 
 import boto3
 
-from app.models import ProductData, InsightsResponse, StarBreakdown
+from app.models import ProductData, InsightsResponse, StarBreakdown, SpecExplained, QuizQuestion, QuizOption
 
 logger = logging.getLogger("bodhi-leaf")
 
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-micro-v1:0")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
-MAX_TOKENS = 1500
+MAX_TOKENS = 2000
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
@@ -55,7 +55,16 @@ JSON_INSTRUCTIONS = (
     '- "sellerAdvice": if sellerVsProduct is "seller_issue" or "both", suggest checking other '
     'sellers on this listing. Otherwise empty string.\n'
     '- "newVersionAlert": if the product name or reviews hint at a newer model/version '
-    'existing or launching soon, mention it briefly. Otherwise empty string.'
+    'existing or launching soon, mention it briefly. Otherwise empty string.\n'
+    '- "specsExplained": array of objects {label, original, layman} for up to 5 technical specs '
+    'that a regular person might not understand. label is the spec name, original is the actual value, '
+    'layman is a simple 1-line explanation (e.g. label:"RAM", original:"8GB DDR5", '
+    'layman:"Enough memory to run many apps at once without slowing down"). '
+    'Skip obvious specs like color or weight.\n'
+    '- "chatSuggestions": array of exactly 3 short questions (max 8 words each) a buyer might ask '
+    'about THIS specific product. Make them relevant and useful '
+    '(e.g. "Is this good for music production?", "How long does the battery last?"). '
+    'Tailor them to the product category.'
 )
 
 
@@ -168,6 +177,15 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
                 topIssue=str(sb.get("topIssue", "")),
             ))
 
+    specs_explained = []
+    for se in parsed.get("specsExplained", []):
+        if isinstance(se, dict) and se.get("label"):
+            specs_explained.append(SpecExplained(
+                label=str(se.get("label", "")),
+                original=str(se.get("original", "")),
+                layman=str(se.get("layman", "")),
+            ))
+
     return InsightsResponse(
         summary=parsed.get("summary", ""),
         pros=parsed.get("pros", []),
@@ -178,6 +196,8 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
         sellerVsProduct=parsed.get("sellerVsProduct", ""),
         sellerAdvice=parsed.get("sellerAdvice", ""),
         newVersionAlert=parsed.get("newVersionAlert", ""),
+        specsExplained=specs_explained[:5],
+        chatSuggestions=parsed.get("chatSuggestions", [])[:3],
         source="bedrock",
     )
 
@@ -236,3 +256,142 @@ async def chat_with_product(product: ProductData, history: list, message: str) -
     response_body = json.loads(response["body"].read())
     answer = response_body["output"]["message"]["content"][0]["text"]
     return answer
+
+
+async def generate_quiz(product: ProductData) -> list[QuizQuestion]:
+    client = _get_client()
+
+    keywords = []
+    if product.title:
+        keywords.append(product.title)
+    if product.brand:
+        keywords.append(product.brand)
+    keywords.extend(product.features[:6])
+    if product.ratingValue:
+        keywords.append(f"Rating: {product.ratingValue}")
+
+    prompt = (
+        f"Product: {product.title}\n"
+        f"Category keywords: {', '.join(keywords[:10])}\n\n"
+        "Generate exactly 4 short MCQ questions to understand what this buyer needs "
+        "from THIS specific product. Each question should have 3 options. "
+        "Questions should be about the buyer's USE CASE, PRIORITIES, and EXPECTATIONS "
+        "for this exact type of product — not generic shopping questions.\n\n"
+        "Respond with ONLY a JSON array (no markdown, no fences) of objects with keys:\n"
+        '- "id": short snake_case identifier\n'
+        '- "question": the question text (max 10 words)\n'
+        '- "options": array of {label, value} objects (3 options each, label max 4 words, value is a short key)\n'
+    )
+
+    request_body = json.dumps({
+        "schemaVersion": "messages-v1",
+        "system": [{"text": "You generate short, relevant product preference quizzes. Output ONLY valid JSON."}],
+        "messages": [{"role": "user", "content": [{"text": prompt}]}],
+        "inferenceConfig": {"maxTokens": 600, "temperature": 0.8},
+    })
+
+    response = client.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=request_body,
+    )
+
+    response_body = json.loads(response["body"].read())
+    raw = response_body["output"]["message"]["content"][0]["text"].strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+
+    parsed = json.loads(raw)
+    questions = []
+    for q in parsed[:4]:
+        options = [QuizOption(label=o["label"], value=o["value"]) for o in q.get("options", [])[:3]]
+        if len(options) >= 2:
+            questions.append(QuizQuestion(id=q.get("id", "q"), question=q["question"], options=options))
+    return questions
+
+
+LANG_NAMES = {
+    "hi": "Hindi",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "bn": "Bengali",
+    "mr": "Marathi",
+    "gu": "Gujarati",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+}
+
+
+async def translate_text(text: str, target_lang: str = "hi") -> str:
+    client = _get_client()
+    lang_name = LANG_NAMES.get(target_lang, "Hindi")
+
+    prompt = (
+        f"Translate the following product summary into {lang_name}. "
+        "Keep it natural and conversational. Output ONLY the translation, nothing else.\n\n"
+        f"{text}"
+    )
+
+    request_body = json.dumps({
+        "schemaVersion": "messages-v1",
+        "system": [{"text": f"You are a translator. Translate text to {lang_name}. Output ONLY the translation."}],
+        "messages": [{"role": "user", "content": [{"text": prompt}]}],
+        "inferenceConfig": {"maxTokens": 1500, "temperature": 0.3},
+    })
+
+    response = client.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=request_body,
+    )
+
+    response_body = json.loads(response["body"].read())
+    return response_body["output"]["message"]["content"][0]["text"].strip()
+
+
+async def generate_recommendations(product: ProductData, preferences: dict) -> dict:
+    client = _get_client()
+
+    pref_text = "\n".join(f"  - {k}: {v}" for k, v in preferences.items()) if preferences else "No specific preferences provided."
+
+    prompt = (
+        f"Product being viewed: {product.title}\n"
+        f"Brand: {product.brand}\n"
+        f"Price: {product.price}\n"
+        f"Features: {', '.join(product.features[:6])}\n"
+        f"Rating: {product.ratingValue}\n\n"
+        f"Buyer's preferences:\n{pref_text}\n\n"
+        "Based on the buyer's preferences and this product, respond with ONLY a JSON object (no markdown):\n"
+        '- "tips": 2-3 short tips on what to prioritize when buying this type of product, personalized to their preferences\n'
+        '- "lookFor": 2-3 specific features/specs to look for in alternatives if this product doesn\'t match\n'
+        '- "avoid": 1-2 things to avoid based on their use case\n'
+    )
+
+    request_body = json.dumps({
+        "schemaVersion": "messages-v1",
+        "system": [{"text": "You give personalized shopping advice. Output ONLY valid JSON."}],
+        "messages": [{"role": "user", "content": [{"text": prompt}]}],
+        "inferenceConfig": {"maxTokens": 600, "temperature": 0.7},
+    })
+
+    response = client.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=request_body,
+    )
+
+    response_body = json.loads(response["body"].read())
+    raw = response_body["output"]["message"]["content"][0]["text"].strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+
+    return json.loads(raw)
