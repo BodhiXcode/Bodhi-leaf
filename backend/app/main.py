@@ -8,8 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from app.models import ProductData, InsightsResponse, TTSRequest, TTSResponse, HealthResponse
-from app.services.bedrock import analyze_product
+from app.models import ProductData, InsightsResponse, TTSRequest, TTSResponse, HealthResponse, ChatRequest, ChatResponse
+from app.services.bedrock import analyze_product, chat_with_product
 from app.services.polly import synthesize_speech
 
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +59,16 @@ async def get_tts(request: TTSRequest):
     except Exception as e:
         logger.error(f"Polly TTS failed: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"TTS synthesis failed: {str(e)}")
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        answer = await chat_with_product(request.product, request.history, request.message)
+        return ChatResponse(answer=answer)
+    except Exception as e:
+        logger.error(f"Bedrock chat failed: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Chat failed: {str(e)}")
 
 
 handler = Mangum(app, lifespan="off", api_gateway_base_path="/prod")

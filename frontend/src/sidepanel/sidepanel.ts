@@ -2,6 +2,7 @@ import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
 import { showZenMode, hideZenMode } from "../zen/zen-mode";
 import { generateInsights } from "../zen/zen-insights";
+import { callBackendForChat, isAIAvailable, type ChatMessage } from "../config/ai";
 
 // ── DOM refs ──
 const loadBtn = document.getElementById("lbtn");
@@ -21,6 +22,24 @@ const cardInsights = document.getElementById("card-insights");
 const cardReviews = document.getElementById("card-reviews");
 const cardSpecs = document.getElementById("card-specs");
 const cardSeller = document.getElementById("card-seller");
+
+// Accordion + chat DOM
+const accordionBody = document.getElementById("product-accordion-body");
+const accordionHeader = document.getElementById("product-accordion-header");
+const chatSection = document.getElementById("product-chat");
+const chatMessagesEl = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form") as HTMLFormElement | null;
+const chatInput = document.getElementById("chat-input") as HTMLInputElement | null;
+const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
+const chatHint = document.getElementById("chat-hint");
+const profileSection = document.getElementById("user-profile");
+const profileBody = document.getElementById("user-profile-body");
+const profileResetBtn = document.getElementById("profile-reset-btn") as HTMLButtonElement | null;
+// Tabs
+const tabHomeBtn = document.getElementById("tab-home-btn") as HTMLButtonElement | null;
+const tabProfileBtn = document.getElementById("tab-profile-btn") as HTMLButtonElement | null;
+const tabHome = document.getElementById("tab-home");
+const tabProfile = document.getElementById("tab-profile");
 
 const valImage = document.getElementById("val-image") as HTMLImageElement | null;
 const valTitle = document.getElementById("val-title");
@@ -55,11 +74,23 @@ const STAGGER_DELAY = 0.07;
 // ── State ──
 let lastScanData: any = null;
 let lastScanTabId: number | null = null;
+let chatHistory: ChatMessage[] = [];
+let isChatSending = false;
+let hasAutoScanned = false;
+
+function ensureAccordionCollapsed() {
+  if (!accordionHeader || !accordionBody) return;
+  accordionHeader.setAttribute("aria-expanded", "false");
+  if (!accordionBody.classList.contains("collapsed")) {
+    accordionBody.classList.add("collapsed");
+  }
+}
 
 // ── Helpers ──
 const insightsDealScore = document.getElementById("insights-deal-score");
 const insightsProsList = document.getElementById("insights-pros-list");
 const insightsConsList = document.getElementById("insights-cons-list");
+const insightsRefreshBtn = document.getElementById("insights-refresh-btn") as HTMLButtonElement | null;
 
 const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardInsights, cardReviews, cardSpecs, cardSeller];
 
@@ -135,6 +166,195 @@ function clearPanel() {
   if (valSpecs) valSpecs.innerHTML = "";
   if (valRatingStars) valRatingStars.innerHTML = "";
   if (valImage) { valImage.src = ""; valImage.alt = ""; }
+
+  // Clear chat
+  chatHistory = [];
+  if (chatMessagesEl) chatMessagesEl.innerHTML = "";
+  if (chatSection) {
+    chatSection.style.display = "none";
+  }
+
+  // Keep product info collapsed by default after a clear
+  ensureAccordionCollapsed();
+}
+
+type PrefStore = Record<string, Record<string, string>>;
+
+function renderUserProfile(store: PrefStore) {
+  if (!profileBody || !profileSection) return;
+  const categories = Object.keys(store);
+  if (categories.length === 0) {
+    profileBody.innerHTML = `<div class="profile-empty-state">
+      <div class="profile-empty-icon">🎯</div>
+      <h3>No Preferences Yet</h3>
+      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
+    </div>`;
+    return;
+  }
+
+  // Helper: map internal keys/values to human-friendly text
+  function humanLabel(key: string) {
+    const map: Record<string, string> = {
+      budget: "Budget Priority",
+      usage: "How Often You'll Use It",
+      brand: "Brand Trust",
+      phone_use: "Phone Purpose",
+      laptop_use: "Laptop Purpose",
+      monitor_use: "Monitor Purpose",
+      audio_use: "Audio Purpose",
+      durability: "Durability Need",
+      battery_importance: "Battery Life Need",
+      connectivity: "Wireless Preference",
+      camera_priority: "Camera Use",
+    };
+    return map[key] || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function humanValue(key: string, val: string) {
+    const v = String(val);
+    const lookup: Record<string, Record<string, string>> = {
+      budget: { low: "💰 Save Money", mid: "⚖️ Balanced", high: "⭐ Premium Quality" },
+      usage: { daily: "📅 Every Day", weekly: "📆 Few Times/Week", occasional: "🗓️ Occasionally" },
+      brand: { high: "✅ Very Important", mid: "😐 Somewhat", low: "❌ Not Important" },
+      phone_use: { camera: "📸 Camera Focus", gaming: "🎮 Gaming", basic: "📞 Calls & Basics", battery: "🔋 Battery Life" },
+      laptop_use: { work: "💼 Work/Coding", gaming: "🎮 Gaming", casual: "🌐 Browsing/Media" },
+      monitor_use: { work: "💼 Productivity", gaming: "🎮 Gaming", creative: "🎨 Content Creation" },
+      audio_use: { music: "🎵 Music", calls: "📞 Calls/Meetings", gaming: "🎮 Gaming", commute: "🚇 Commute", workout: "💪 Workout", home: "🏠 Home Use" },
+      durability: { high: "🏗️ Built to Last", mid: "📦 Decent Quality", low: "💨 Short-term" },
+      battery_importance: { high: "🔋 All Day (8+ hrs)", mid: "🔋 Moderate (4-6 hrs)", low: "🔌 Charge Often" },
+      connectivity: { essential: "📡 Must Be Wireless", preferred: "📶 Nice to Have", no: "🔌 Wired is Fine" },
+      camera_priority: { content: "🎬 Content Creation", social: "📱 Social Media", basic: "📹 Video Calls" },
+    };
+    return (lookup[key] && lookup[key][v]) || v;
+  }
+
+  // Helper: get score for visualization
+  function getScoreForPref(key: string, val: string): number {
+    const scoreMap: Record<string, Record<string, number>> = {
+      budget: { low: 30, mid: 65, high: 90 },
+      usage: { daily: 90, weekly: 60, occasional: 30 },
+      brand: { high: 90, mid: 60, low: 30 },
+      durability: { high: 90, mid: 60, low: 30 },
+      battery_importance: { high: 90, mid: 60, low: 30 },
+    };
+    return (scoreMap[key] && scoreMap[key][val]) || 50;
+  }
+
+  // Helper: get color based on score
+  function getScoreColor(score: number): string {
+    if (score >= 70) return "#34c759";
+    if (score >= 40) return "#f5a623";
+    return "#ff453a";
+  }
+
+  let html = "";
+
+  // Summary stats
+  let totalPrefs = 0;
+  let totalScore = 0;
+
+  for (const category of categories) {
+    const prefs = store[category] || {};
+    const prefKeys = Object.keys(prefs);
+    if (prefKeys.length === 0) continue;
+
+    // Calculate category score
+    let catScore = 0;
+    prefKeys.forEach(key => {
+      const score = getScoreForPref(key, prefs[key]);
+      catScore += score;
+      totalScore += score;
+      totalPrefs++;
+    });
+    const avgScore = Math.round(catScore / prefKeys.length);
+    const catColor = getScoreColor(avgScore);
+
+    const label = category.charAt(0).toUpperCase() + category.slice(1);
+
+    // Build preference bars
+    const prefBars = prefKeys.map((key) => {
+      const val = prefs[key];
+      const score = getScoreForPref(key, val);
+      const color = getScoreColor(score);
+      const humanVal = humanValue(key, val);
+      // Strip emoji from humanVal for the bar
+      const cleanLabel = humanVal.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").trim();
+      const emoji = humanVal.match(/[\u{1F300}-\u{1F9FF}]/gu)?.[0] || "📊";
+
+      return `<div class="profile-pref-bar">
+        <div class="profile-pref-bar-header">
+          <span class="profile-pref-bar-label">${escapeHtml(emoji)} ${escapeHtml(humanLabel(key))}</span>
+          <span class="profile-pref-bar-value">${escapeHtml(cleanLabel)}</span>
+        </div>
+        <div class="profile-pref-bar-track">
+          <div class="profile-pref-bar-fill" style="width: ${score}%; background: ${color};"></div>
+        </div>
+      </div>`;
+    }).join("");
+
+    html += `<div class="profile-category">
+      <div class="profile-category-header">
+        <div class="profile-category-title">${escapeHtml(label)}</div>
+        <div class="profile-category-score" style="color: ${catColor}">${avgScore}% Match</div>
+      </div>
+      <div class="profile-pref-bars">${prefBars}</div>
+    </div>`;
+  }
+
+  // Overall match score
+  const overallScore = totalPrefs > 0 ? Math.round(totalScore / totalPrefs) : 0;
+  const overallColor = getScoreColor(overallScore);
+
+  const overallHtml = `<div class="profile-overall">
+    <div class="profile-overall-label">Your Shopping Profile</div>
+    <div class="profile-overall-score">
+      <div class="profile-overall-ring" style="--score-color: ${overallColor}; --score-pct: ${overallScore}">
+        <span class="profile-overall-number" style="color: ${overallColor}">${overallScore}</span>
+        <span class="profile-overall-unit">%</span>
+      </div>
+      <div class="profile-overall-text">Profile Strength</div>
+    </div>
+  </div>`;
+
+  if (!html) {
+    profileBody.innerHTML = `<div class="profile-empty-state">
+      <div class="profile-empty-icon">🎯</div>
+      <h3>No Preferences Yet</h3>
+      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
+    </div>`;
+  } else {
+    profileBody.innerHTML = overallHtml + html;
+  }
+}
+
+function loadUserProfileFromTab() {
+  if (!profileSection) return;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (!tabId) {
+      renderUserProfile({});
+      return;
+    }
+
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        try {
+          const raw = localStorage.getItem("__bodhiPrefs");
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      },
+    }, (results: any) => {
+      const store = (results && results[0]?.result) || {};
+      renderUserProfile(store as PrefStore);
+    });
+  });
 }
 
 function showSkeleton() {
@@ -290,6 +510,11 @@ function requestPageData(ratingFilter?: string) {
           populatePanel(results[0].result, ratingFilter);
           setZenEnabled(true);
           container?.scrollTo({ top: 0, behavior: "smooth" });
+          // Auto-open Zen Mode on first successful scan
+          if (!zenActive) {
+            toggleZenMode();
+          }
+          loadUserProfileFromTab();
         } else {
           lastScanData = null;
           lastScanTabId = null;
@@ -476,6 +701,18 @@ function populatePanel(data: any, _ratingFilter?: string) {
     revealCard(cardSeller);
     valSeller.innerHTML = `<span class="seller-badge">${escapeHtml(data.seller)}</span>`;
   }
+
+  // Show chat section when AI backend is available
+  if (chatSection) {
+    if (isAIAvailable()) {
+      chatSection.style.display = "block";
+      if (chatHint) {
+        chatHint.textContent = "Chat is powered by AWS Bedrock and is scoped only to this product.";
+      }
+    } else {
+      chatSection.style.display = "none";
+    }
+  }
 }
 
 // ── AI Insights helpers ──
@@ -585,6 +822,30 @@ async function toggleZenMode() {
 }
 
 // ── Init ──
+// Start with product info collapsed in the sidepanel
+ensureAccordionCollapsed();
+
+// Tab switching
+function switchToTab(tab: "home" | "profile") {
+  if (tab === "home") {
+    tabHomeBtn?.classList.add("active");
+    tabHomeBtn?.setAttribute("aria-selected", "true");
+    tabProfileBtn?.classList.remove("active");
+    tabProfileBtn?.setAttribute("aria-selected", "false");
+    if (tabHome) tabHome.style.display = "block";
+    if (tabProfile) tabProfile.style.display = "none";
+  } else {
+    tabHomeBtn?.classList.remove("active");
+    tabHomeBtn?.setAttribute("aria-selected", "false");
+    tabProfileBtn?.classList.add("active");
+    tabProfileBtn?.setAttribute("aria-selected", "true");
+    if (tabHome) tabHome.style.display = "none";
+    if (tabProfile) tabProfile.style.display = "block";
+    // load profile when profile tab is shown
+    loadUserProfileFromTab();
+  }
+}
+
 loadBtn?.addEventListener("click", () => {
   cachedInsights = null;
   requestPageData();
@@ -596,4 +857,114 @@ zenBtn?.addEventListener("click", () => {
 
 closeBtn?.addEventListener("click", () => {
   window.close();
+});
+
+// Auto-scan when the sidepanel loads
+if (!hasAutoScanned) {
+  hasAutoScanned = true;
+  cachedInsights = null;
+  requestPageData();
+}
+
+tabHomeBtn?.addEventListener("click", () => switchToTab("home"));
+tabProfileBtn?.addEventListener("click", () => switchToTab("profile"));
+
+// Insights refresh button - re-generate AI insights
+insightsRefreshBtn?.addEventListener("click", async () => {
+  if (!lastScanData || !insightsRefreshBtn) return;
+
+  // Show loading state
+  insightsRefreshBtn.classList.add("refreshing");
+  insightsRefreshBtn.disabled = true;
+
+  // Clear cached insights to force regeneration
+  cachedInsights = null;
+  showInsightsLoading();
+
+  try {
+    await loadInsightsAsync(lastScanData);
+  } finally {
+    insightsRefreshBtn.classList.remove("refreshing");
+    insightsRefreshBtn.disabled = false;
+  }
+});
+
+// User profile reset – clears all saved MCQ preferences for this origin
+profileResetBtn?.addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (!tabId) return;
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        try {
+          localStorage.removeItem("__bodhiPrefs");
+        } catch {
+          // ignore
+        }
+      },
+    }, () => {
+      renderUserProfile({});
+    });
+  });
+});
+
+// Accordion toggle
+accordionHeader?.addEventListener("click", () => {
+  if (!accordionBody) return;
+  const expanded = accordionHeader.getAttribute("aria-expanded") === "true";
+  const nextExpanded = !expanded;
+  accordionHeader.setAttribute("aria-expanded", String(nextExpanded));
+  if (nextExpanded) {
+    accordionBody.classList.remove("collapsed");
+  } else {
+    accordionBody.classList.add("collapsed");
+  }
+});
+
+// Chat helpers
+function appendChatMessage(role: "user" | "assistant" | "error", text: string) {
+  if (!chatMessagesEl) return;
+  const div = document.createElement("div");
+  div.classList.add("chat-message");
+  if (role === "user") div.classList.add("chat-message-user");
+  else if (role === "assistant") div.classList.add("chat-message-assistant");
+  else div.classList.add("chat-message-error");
+  div.textContent = text;
+  chatMessagesEl.appendChild(div);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
+
+async function handleChatSubmit(message: string) {
+  if (!lastScanData || !isAIAvailable() || isChatSending) return;
+  if (!message.trim()) return;
+
+  isChatSending = true;
+  if (chatSendBtn) chatSendBtn.disabled = true;
+
+  appendChatMessage("user", message.trim());
+  const userMsg: ChatMessage = { role: "user", content: message.trim() };
+  chatHistory.push(userMsg);
+
+  try {
+    const response = await callBackendForChat(lastScanData, chatHistory, message.trim());
+    const answer = response.answer ?? "";
+    appendChatMessage("assistant", answer);
+    chatHistory.push({ role: "assistant", content: answer });
+  } catch (err) {
+    console.error("[bodhi-leaf] Chat failed:", err);
+    appendChatMessage("error", "Sorry, the product chat is unavailable right now. Please try again in a moment.");
+  } finally {
+    isChatSending = false;
+    if (chatSendBtn) chatSendBtn.disabled = false;
+  }
+}
+
+chatForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const value = chatInput?.value ?? "";
+  if (!value.trim()) return;
+  if (chatInput) chatInput.value = "";
+  handleChatSubmit(value);
 });

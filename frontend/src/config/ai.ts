@@ -70,6 +70,27 @@ export async function callBackendForInsights(data: any): Promise<AIInsightsRespo
   return result;
 }
 
-export async function callBackendForTTS(text: string): Promise<TTSResponse> {
-  return apiFetch<TTSResponse>("/api/tts", { text }, TTS_TIMEOUT_MS);
+export async function callBackendForTTS(
+  text: string,
+  voiceId = "Kajal",
+  engine = "generative",
+): Promise<TTSResponse> {
+  return apiFetch<TTSResponse>(
+    "/api/tts",
+    { text, voice_id: voiceId, engine },
+    TTS_TIMEOUT_MS,
+  );
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+}
+
+export async function callBackendForChat(product: any, history: ChatMessage[], message: string): Promise<ChatResponse> {
+  return apiFetch<ChatResponse>("/api/chat", { product, history, message }, INSIGHTS_TIMEOUT_MS);
 }

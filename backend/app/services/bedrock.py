@@ -180,3 +180,59 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
         newVersionAlert=parsed.get("newVersionAlert", ""),
         source="bedrock",
     )
+
+
+async def chat_with_product(product: ProductData, history: list, message: str) -> str:
+    client = _get_client()
+
+    # Strict system prompt for boundaries
+    CHAT_SYSTEM_PROMPT = (
+        "You are the Bodhi Leaf Shopping Assistant. Your ONLY goal is to answer questions about the SPECIFIC product provided. "
+        "Strictly refuse to answer any questions that are NOT about this product. "
+        "If a user asks about anything else, say: 'I can only help you with questions about this specific product.' "
+        "Keep your answers helpful, honest, and concise. Use the provided product data and reviews as your source of truth."
+    )
+
+    product_context = (
+        f"Product Title: {product.title}\n"
+        f"Brand: {product.brand}\n"
+        f"Price: {product.price}\n"
+        f"Description/Features: {', '.join(product.features[:10])}\n"
+        f"Rating: {product.ratingValue} ({product.ratingCount})\n"
+    )
+
+    messages = []
+    # Add history
+    for msg in history:
+        messages.append({
+            "role": msg.role,
+            "content": [{"text": msg.content}]
+        })
+
+    # Add current message with context
+    user_content = f"CONTEXT ON PRODUCT:\n{product_context}\n\nUSER QUESTION: {message}"
+    messages.append({
+        "role": "user",
+        "content": [{"text": user_content}]
+    })
+
+    request_body = json.dumps({
+        "schemaVersion": "messages-v1",
+        "system": [{"text": CHAT_SYSTEM_PROMPT}],
+        "messages": messages,
+        "inferenceConfig": {
+            "maxTokens": 800,
+            "temperature": 0.5,
+        },
+    })
+
+    response = client.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=request_body,
+    )
+
+    response_body = json.loads(response["body"].read())
+    answer = response_body["output"]["message"]["content"][0]["text"]
+    return answer

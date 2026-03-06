@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class ReviewData(BaseModel):
@@ -78,3 +79,18 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     service: str = "bodhi-leaf-backend"
     region: str = ""
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    product: ProductData
+    history: list[ChatMessage] = Field(default_factory=list)
+    message: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
