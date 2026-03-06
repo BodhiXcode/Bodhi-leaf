@@ -2,6 +2,7 @@ import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
 import { showZenMode, hideZenMode } from "../zen/zen-mode";
 import { generateInsights } from "../zen/zen-insights";
+import { callBackendForChat, isAIAvailable, type ChatMessage } from "../config/ai";
 
 // ── DOM refs ──
 const loadBtn = document.getElementById("lbtn");
@@ -21,6 +22,29 @@ const cardInsights = document.getElementById("card-insights");
 const cardReviews = document.getElementById("card-reviews");
 const cardSpecs = document.getElementById("card-specs");
 const cardSeller = document.getElementById("card-seller");
+
+// Chat overlay DOM
+const chatFab = document.getElementById("chat-fab") as HTMLButtonElement | null;
+const chatOverlay = document.getElementById("chat-overlay");
+const chatOverlayClose = document.getElementById("chat-overlay-close") as HTMLButtonElement | null;
+const chatBadge = document.getElementById("chat-badge");
+const chatMessagesEl = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form") as HTMLFormElement | null;
+const chatInput = document.getElementById("chat-input") as HTMLInputElement | null;
+const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
+const chatHint = document.getElementById("chat-hint");
+const chatSuggestions = document.getElementById("chat-suggestions");
+const reviewSearch = document.getElementById("review-search") as HTMLInputElement | null;
+const profileSection = document.getElementById("user-profile");
+const profileBody = document.getElementById("user-profile-body");
+const profileResetBtn = document.getElementById("profile-reset-btn") as HTMLButtonElement | null;
+// Tabs
+const tabInsightsBtn = document.getElementById("tab-insights-btn") as HTMLButtonElement | null;
+const tabDetailsBtn = document.getElementById("tab-details-btn") as HTMLButtonElement | null;
+const tabProfileBtn = document.getElementById("tab-profile-btn") as HTMLButtonElement | null;
+const tabInsights = document.getElementById("tab-insights");
+const tabDetails = document.getElementById("tab-details");
+const tabProfile = document.getElementById("tab-profile");
 
 const valImage = document.getElementById("val-image") as HTMLImageElement | null;
 const valTitle = document.getElementById("val-title");
@@ -55,11 +79,44 @@ const STAGGER_DELAY = 0.07;
 // ── State ──
 let lastScanData: any = null;
 let lastScanTabId: number | null = null;
+let lastProductUrl: string = "";
+let chatHistory: ChatMessage[] = [];
+let isChatSending = false;
+let hasAutoScanned = false;
+
+function chatStorageKey(url: string): string {
+  const match = url.match(/\/dp\/([A-Z0-9]+)/i) || url.match(/\/gp\/product\/([A-Z0-9]+)/i);
+  return match ? `chat_${match[1]}` : "";
+}
+
+function saveChatHistory() {
+  const key = chatStorageKey(lastProductUrl);
+  if (!key || chatHistory.length === 0) return;
+  chrome.storage.local.set({ [key]: chatHistory.slice(-40) });
+}
+
+function loadChatHistory(url: string) {
+  const key = chatStorageKey(url);
+  if (!key) return;
+  chrome.storage.local.get(key, (result) => {
+    const saved: ChatMessage[] = result[key] || [];
+    if (saved.length > 0) {
+      chatHistory = saved;
+      if (chatMessagesEl) {
+        chatMessagesEl.innerHTML = "";
+        for (const msg of saved) {
+          appendChatMessage(msg.role, msg.content);
+        }
+      }
+    }
+  });
+}
 
 // ── Helpers ──
 const insightsDealScore = document.getElementById("insights-deal-score");
 const insightsProsList = document.getElementById("insights-pros-list");
 const insightsConsList = document.getElementById("insights-cons-list");
+const insightsRefreshBtn = document.getElementById("insights-refresh-btn") as HTMLButtonElement | null;
 
 const allCards = () => [cardImage, cardTitle, cardPrice, cardAvailability, cardFeatures, cardRating, cardInsights, cardReviews, cardSpecs, cardSeller];
 
@@ -135,6 +192,243 @@ function clearPanel() {
   if (valSpecs) valSpecs.innerHTML = "";
   if (valRatingStars) valRatingStars.innerHTML = "";
   if (valImage) { valImage.src = ""; valImage.alt = ""; }
+
+  // Clear chat
+  chatHistory = [];
+  if (chatMessagesEl) chatMessagesEl.innerHTML = "";
+  if (chatSuggestions) chatSuggestions.innerHTML = "";
+}
+
+function renderChatSuggestions(suggestions: string[]) {
+  if (!chatSuggestions || !suggestions.length) return;
+  chatSuggestions.innerHTML = suggestions
+    .map(s => `<button class="chat-suggestion-chip">${escapeHtml(s)}</button>`)
+    .join("");
+  chatSuggestions.querySelectorAll(".chat-suggestion-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const text = (btn as HTMLElement).textContent || "";
+      if (chatInput) chatInput.value = text;
+      handleChatSubmit(text);
+      if (chatSuggestions) chatSuggestions.innerHTML = "";
+    });
+  });
+}
+
+let allReviewsHtml: string[] = [];
+let allReviewsData: { stars: number; text: string; html: string }[] = [];
+
+function filterReviews(sentiment: string, keyword: string) {
+  if (!valReviews) return;
+  let filtered = allReviewsData;
+
+  if (sentiment === "positive") {
+    filtered = filtered.filter(r => r.stars >= 4);
+  } else if (sentiment === "negative") {
+    filtered = filtered.filter(r => r.stars <= 3);
+  }
+
+  if (keyword) {
+    const kw = keyword.toLowerCase();
+    filtered = filtered.filter(r => r.text.toLowerCase().includes(kw));
+  }
+
+  if (filtered.length === 0) {
+    valReviews.innerHTML = `<div class="review-empty">No reviews match your filter.</div>`;
+  } else {
+    valReviews.innerHTML = filtered.map(r => r.html).join("");
+    bindReviewToggles();
+  }
+}
+
+function bindReviewToggles() {
+  if (!valReviews) return;
+  valReviews.querySelectorAll(".review-toggle").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const review = (e.currentTarget as HTMLElement).parentElement;
+      if (!review) return;
+      const expanded = review.classList.toggle("review--expanded");
+      (e.currentTarget as HTMLElement).textContent = expanded ? "Show less" : "Show more";
+    });
+  });
+}
+
+type PrefStore = Record<string, Record<string, string>>;
+
+function renderUserProfile(store: PrefStore) {
+  if (!profileBody || !profileSection) return;
+  const categories = Object.keys(store);
+  if (categories.length === 0) {
+    profileBody.innerHTML = `<div class="profile-empty-state">
+      <div class="profile-empty-icon">🎯</div>
+      <h3>No Preferences Yet</h3>
+      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
+    </div>`;
+    return;
+  }
+
+  // Helper: map internal keys/values to human-friendly text
+  function humanLabel(key: string) {
+    const map: Record<string, string> = {
+      budget: "Budget Priority",
+      usage: "How Often You'll Use It",
+      brand: "Brand Trust",
+      phone_use: "Phone Purpose",
+      laptop_use: "Laptop Purpose",
+      monitor_use: "Monitor Purpose",
+      audio_use: "Audio Purpose",
+      durability: "Durability Need",
+      battery_importance: "Battery Life Need",
+      connectivity: "Wireless Preference",
+      camera_priority: "Camera Use",
+    };
+    return map[key] || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function humanValue(key: string, val: string) {
+    const v = String(val);
+    const lookup: Record<string, Record<string, string>> = {
+      budget: { low: "💰 Save Money", mid: "⚖️ Balanced", high: "⭐ Premium Quality" },
+      usage: { daily: "📅 Every Day", weekly: "📆 Few Times/Week", occasional: "🗓️ Occasionally" },
+      brand: { high: "✅ Very Important", mid: "😐 Somewhat", low: "❌ Not Important" },
+      phone_use: { camera: "📸 Camera Focus", gaming: "🎮 Gaming", basic: "📞 Calls & Basics", battery: "🔋 Battery Life" },
+      laptop_use: { work: "💼 Work/Coding", gaming: "🎮 Gaming", casual: "🌐 Browsing/Media" },
+      monitor_use: { work: "💼 Productivity", gaming: "🎮 Gaming", creative: "🎨 Content Creation" },
+      audio_use: { music: "🎵 Music", calls: "📞 Calls/Meetings", gaming: "🎮 Gaming", commute: "🚇 Commute", workout: "💪 Workout", home: "🏠 Home Use" },
+      durability: { high: "🏗️ Built to Last", mid: "📦 Decent Quality", low: "💨 Short-term" },
+      battery_importance: { high: "🔋 All Day (8+ hrs)", mid: "🔋 Moderate (4-6 hrs)", low: "🔌 Charge Often" },
+      connectivity: { essential: "📡 Must Be Wireless", preferred: "📶 Nice to Have", no: "🔌 Wired is Fine" },
+      camera_priority: { content: "🎬 Content Creation", social: "📱 Social Media", basic: "📹 Video Calls" },
+    };
+    return (lookup[key] && lookup[key][v]) || v;
+  }
+
+  // Helper: get score for visualization
+  function getScoreForPref(key: string, val: string): number {
+    const scoreMap: Record<string, Record<string, number>> = {
+      budget: { low: 30, mid: 65, high: 90 },
+      usage: { daily: 90, weekly: 60, occasional: 30 },
+      brand: { high: 90, mid: 60, low: 30 },
+      durability: { high: 90, mid: 60, low: 30 },
+      battery_importance: { high: 90, mid: 60, low: 30 },
+    };
+    return (scoreMap[key] && scoreMap[key][val]) || 50;
+  }
+
+  // Helper: get color based on score
+  function getScoreColor(score: number): string {
+    if (score >= 70) return "#34c759";
+    if (score >= 40) return "#f5a623";
+    return "#ff453a";
+  }
+
+  let html = "";
+
+  // Summary stats
+  let totalPrefs = 0;
+  let totalScore = 0;
+
+  for (const category of categories) {
+    const prefs = store[category] || {};
+    const prefKeys = Object.keys(prefs);
+    if (prefKeys.length === 0) continue;
+
+    // Calculate category score
+    let catScore = 0;
+    prefKeys.forEach(key => {
+      const score = getScoreForPref(key, prefs[key]);
+      catScore += score;
+      totalScore += score;
+      totalPrefs++;
+    });
+    const avgScore = Math.round(catScore / prefKeys.length);
+    const catColor = getScoreColor(avgScore);
+
+    const label = category.charAt(0).toUpperCase() + category.slice(1);
+
+    // Build preference bars
+    const prefBars = prefKeys.map((key) => {
+      const val = prefs[key];
+      const score = getScoreForPref(key, val);
+      const color = getScoreColor(score);
+      const humanVal = humanValue(key, val);
+      // Strip emoji from humanVal for the bar
+      const cleanLabel = humanVal.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").trim();
+      const emoji = humanVal.match(/[\u{1F300}-\u{1F9FF}]/gu)?.[0] || "📊";
+
+      return `<div class="profile-pref-bar">
+        <div class="profile-pref-bar-header">
+          <span class="profile-pref-bar-label">${escapeHtml(emoji)} ${escapeHtml(humanLabel(key))}</span>
+          <span class="profile-pref-bar-value">${escapeHtml(cleanLabel)}</span>
+        </div>
+        <div class="profile-pref-bar-track">
+          <div class="profile-pref-bar-fill" style="width: ${score}%; background: ${color};"></div>
+        </div>
+      </div>`;
+    }).join("");
+
+    html += `<div class="profile-category">
+      <div class="profile-category-header">
+        <div class="profile-category-title">${escapeHtml(label)}</div>
+        <div class="profile-category-score" style="color: ${catColor}">${avgScore}% Match</div>
+      </div>
+      <div class="profile-pref-bars">${prefBars}</div>
+    </div>`;
+  }
+
+  // Overall match score
+  const overallScore = totalPrefs > 0 ? Math.round(totalScore / totalPrefs) : 0;
+  const overallColor = getScoreColor(overallScore);
+
+  const overallHtml = `<div class="profile-overall">
+    <div class="profile-overall-label">Your Shopping Profile</div>
+    <div class="profile-overall-score">
+      <div class="profile-overall-ring" style="--score-color: ${overallColor}; --score-pct: ${overallScore}">
+        <span class="profile-overall-number" style="color: ${overallColor}">${overallScore}</span>
+        <span class="profile-overall-unit">%</span>
+      </div>
+      <div class="profile-overall-text">Profile Strength</div>
+    </div>
+  </div>`;
+
+  if (!html) {
+    profileBody.innerHTML = `<div class="profile-empty-state">
+      <div class="profile-empty-icon">🎯</div>
+      <h3>No Preferences Yet</h3>
+      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
+    </div>`;
+  } else {
+    profileBody.innerHTML = overallHtml + html;
+  }
+}
+
+function loadUserProfileFromTab() {
+  if (!profileSection) return;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (!tabId) {
+      renderUserProfile({});
+      return;
+    }
+
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        try {
+          const raw = localStorage.getItem("__bodhiPrefs");
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      },
+    }, (results: any) => {
+      const store = (results && results[0]?.result) || {};
+      renderUserProfile(store as PrefStore);
+    });
+  });
 }
 
 function showSkeleton() {
@@ -175,11 +469,37 @@ function requestPageData(ratingFilter?: string) {
     }
 
     const tabUrl = tabs[0].url || "";
+    const competitorSites = [
+      { pattern: "flipkart.", name: "Flipkart" },
+      { pattern: "myntra.", name: "Myntra" },
+      { pattern: "snapdeal.", name: "Snapdeal" },
+      { pattern: "meesho.", name: "Meesho" },
+      { pattern: "ajio.", name: "AJIO" },
+      { pattern: "jiomart.", name: "JioMart" },
+    ];
+    const matchedSite = competitorSites.find(s => tabUrl.includes(s.pattern));
+
+    if (matchedSite) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus(`<span class="status-icon">🚧</span><strong>${matchedSite.name}</strong> support is coming soon!<br>Bodhi Leaf currently works on <strong>Amazon</strong> product pages.`);
+      return;
+    }
+
     if (!tabUrl.includes("amazon.")) {
       isScanning = false;
       setScanning(false);
       hideSkeleton();
       showStatus('<span class="status-icon">🛒</span>Bodhi Leaf works on <strong>Amazon</strong> product pages.<br>Navigate to a product and try again.');
+      return;
+    }
+
+    if (!tabUrl.includes("/dp/") && !tabUrl.includes("/gp/product/") && !tabUrl.includes("/product/")) {
+      isScanning = false;
+      setScanning(false);
+      hideSkeleton();
+      showStatus('<span class="status-icon">📦</span>Navigate to a specific <strong>product page</strong> on Amazon to scan it.');
       return;
     }
 
@@ -287,9 +607,12 @@ function requestPageData(ratingFilter?: string) {
         if (results && results[0]?.result) {
           lastScanData = results[0].result;
           lastScanTabId = tabId;
+          lastProductUrl = tabUrl;
           populatePanel(results[0].result, ratingFilter);
           setZenEnabled(true);
           container?.scrollTo({ top: 0, behavior: "smooth" });
+          loadUserProfileFromTab();
+          loadChatHistory(tabUrl);
         } else {
           lastScanData = null;
           lastScanTabId = null;
@@ -438,9 +761,9 @@ function populatePanel(data: any, _ratingFilter?: string) {
   // Reviews
   if (data.reviews?.length && cardReviews && valReviews) {
     revealCard(cardReviews);
-    valReviews.innerHTML = data.reviews.slice(0, MAX_REVIEWS).map((r: any) => {
+    allReviewsData = data.reviews.slice(0, MAX_REVIEWS).map((r: any) => {
       const starNum = parseRatingNumber(r.stars);
-      const stars = starNum > 0
+      const starsHtml = starNum > 0
         ? `<div class="review-stars">${renderStars(starNum)} ${starNum.toFixed(1)}</div>`
         : "";
       const title = r.title ? `<div class="review-title-text">${escapeHtml(r.title)}</div>` : "";
@@ -449,18 +772,13 @@ function populatePanel(data: any, _ratingFilter?: string) {
       const meta = (author || date) ? `<div class="review-meta">${author}${date}</div>` : "";
       const body = r.body ? `<div class="review-body-text">${escapeHtml(r.body)}</div>` : "";
       const needsToggle = (r.body?.length || 0) > REVIEW_TRUNCATE_LENGTH;
-      const toggle = needsToggle ? `<button class="review-toggle">Show more ↓</button>` : "";
-      return `<div class="review">${stars}${title}${meta}${body}${toggle}</div>`;
-    }).join("");
-
-    Array.from(valReviews.querySelectorAll(".review-toggle")).forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const review = (e.currentTarget as HTMLElement).parentElement;
-        if (!review) return;
-        const expanded = review.classList.toggle("review--expanded");
-        (e.currentTarget as HTMLElement).textContent = expanded ? "Show less ↑" : "Show more ↓";
-      });
+      const toggle = needsToggle ? `<button class="review-toggle">Show more</button>` : "";
+      const html = `<div class="review">${starsHtml}${title}${meta}${body}${toggle}</div>`;
+      return { stars: starNum, text: `${r.title || ""} ${r.body || ""}`, html };
     });
+
+    valReviews.innerHTML = allReviewsData.map(r => r.html).join("");
+    bindReviewToggles();
   }
 
   // Tech specs
@@ -476,6 +794,9 @@ function populatePanel(data: any, _ratingFilter?: string) {
     revealCard(cardSeller);
     valSeller.innerHTML = `<span class="seller-badge">${escapeHtml(data.seller)}</span>`;
   }
+
+  // Stay on Details tab after scan (default landing view)
+  switchToTab("details");
 }
 
 // ── AI Insights helpers ──
@@ -527,6 +848,31 @@ function renderInsights(insights: Awaited<ReturnType<typeof generateInsights>>) 
       ? insights.cons.map(c => `<li>${escapeHtml(c)}</li>`).join("")
       : `<li class="insight-empty">No significant negatives detected</li>`;
   }
+
+  // Layman spec explanations
+  const specsExplained = (insights as any).specsExplained || [];
+  if (specsExplained.length > 0 && insightsDealScore?.parentElement) {
+    let existingSpecs = insightsDealScore.parentElement.querySelector(".specs-layman");
+    if (existingSpecs) existingSpecs.remove();
+    const section = document.createElement("div");
+    section.className = "specs-layman";
+    section.innerHTML = `
+      <div class="specs-layman-title">What the specs mean</div>
+      ${specsExplained.map((s: any) => `
+        <div class="spec-layman-row">
+          <span class="spec-layman-label">${escapeHtml(s.label)}</span>
+          <span class="spec-layman-original">${escapeHtml(s.original)}</span>
+          <span class="spec-layman-explain">${escapeHtml(s.layman)}</span>
+        </div>
+      `).join("")}
+    `;
+    insightsDealScore.parentElement.appendChild(section);
+  }
+
+  // Chat suggestions from AI
+  if ((insights as any).chatSuggestions?.length) {
+    renderChatSuggestions((insights as any).chatSuggestions);
+  }
 }
 
 async function loadInsightsAsync(data: any) {
@@ -557,10 +903,28 @@ function setZenEnabled(enabled: boolean) {
   }
 }
 
+function syncZenState(tabId: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => !!document.getElementById("bodhi-zen-backdrop"),
+    }, (results: any) => {
+      resolve(results?.[0]?.result === true);
+    });
+  });
+}
+
 async function toggleZenMode() {
   if (!lastScanData || !lastScanTabId || zenLoading) return;
 
-  if (zenActive) {
+  const overlayExists = await syncZenState(lastScanTabId);
+  if (zenActive && !overlayExists) {
+    zenActive = false;
+    zenBtn?.classList.remove("zen-active");
+  }
+
+  if (zenActive || overlayExists) {
     hideZenMode(lastScanTabId);
     zenActive = false;
     zenBtn?.classList.remove("zen-active");
@@ -585,6 +949,37 @@ async function toggleZenMode() {
 }
 
 // ── Init ──
+
+// Tab switching
+type TabName = "insights" | "details" | "profile";
+const tabBtns: Record<TabName, HTMLButtonElement | null> = {
+  insights: tabInsightsBtn,
+  details: tabDetailsBtn,
+  profile: tabProfileBtn,
+};
+const tabPanes: Record<TabName, HTMLElement | null> = {
+  insights: tabInsights,
+  details: tabDetails,
+  profile: tabProfile,
+};
+
+function switchToTab(tab: TabName) {
+  for (const key of Object.keys(tabBtns) as TabName[]) {
+    const btn = tabBtns[key];
+    const pane = tabPanes[key];
+    if (key === tab) {
+      btn?.classList.add("active");
+      btn?.setAttribute("aria-selected", "true");
+      if (pane) pane.style.display = "block";
+    } else {
+      btn?.classList.remove("active");
+      btn?.setAttribute("aria-selected", "false");
+      if (pane) pane.style.display = "none";
+    }
+  }
+  if (tab === "profile") loadUserProfileFromTab();
+}
+
 loadBtn?.addEventListener("click", () => {
   cachedInsights = null;
   requestPageData();
@@ -596,4 +991,148 @@ zenBtn?.addEventListener("click", () => {
 
 closeBtn?.addEventListener("click", () => {
   window.close();
+});
+
+// Auto-scan when the sidepanel loads
+if (!hasAutoScanned) {
+  hasAutoScanned = true;
+  cachedInsights = null;
+  requestPageData();
+}
+
+tabInsightsBtn?.addEventListener("click", () => switchToTab("insights"));
+tabDetailsBtn?.addEventListener("click", () => switchToTab("details"));
+tabProfileBtn?.addEventListener("click", () => switchToTab("profile"));
+
+// Insights refresh button - re-generate AI insights
+insightsRefreshBtn?.addEventListener("click", async () => {
+  if (!lastScanData || !insightsRefreshBtn) return;
+
+  // Show loading state
+  insightsRefreshBtn.classList.add("refreshing");
+  insightsRefreshBtn.disabled = true;
+
+  // Clear cached insights to force regeneration
+  cachedInsights = null;
+  showInsightsLoading();
+
+  try {
+    await loadInsightsAsync(lastScanData);
+  } finally {
+    insightsRefreshBtn.classList.remove("refreshing");
+    insightsRefreshBtn.disabled = false;
+  }
+});
+
+// User profile reset – clears all saved MCQ preferences for this origin
+profileResetBtn?.addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (!tabId) return;
+    (chrome.scripting.executeScript as any)({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        try {
+          localStorage.removeItem("__bodhiPrefs");
+        } catch {
+          // ignore
+        }
+      },
+    }, () => {
+      renderUserProfile({});
+    });
+  });
+});
+
+// ── Chat FAB + Overlay ──
+let chatOverlayOpen = false;
+let unreadCount = 0;
+
+function toggleChatOverlay(open?: boolean) {
+  const shouldOpen = open !== undefined ? open : !chatOverlayOpen;
+  chatOverlayOpen = shouldOpen;
+  if (chatOverlay) chatOverlay.style.display = shouldOpen ? "flex" : "none";
+  chatFab?.classList.toggle("chat-fab--open", shouldOpen);
+  if (shouldOpen) {
+    unreadCount = 0;
+    if (chatBadge) chatBadge.style.display = "none";
+    chatInput?.focus();
+    if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+}
+
+chatFab?.addEventListener("click", () => toggleChatOverlay());
+chatOverlayClose?.addEventListener("click", () => toggleChatOverlay(false));
+
+function incrementUnread() {
+  if (chatOverlayOpen) return;
+  unreadCount++;
+  if (chatBadge) {
+    chatBadge.textContent = String(unreadCount);
+    chatBadge.style.display = "flex";
+  }
+}
+
+// Chat helpers
+function appendChatMessage(role: "user" | "assistant" | "error", text: string) {
+  if (!chatMessagesEl) return;
+  const div = document.createElement("div");
+  div.classList.add("chat-message");
+  if (role === "user") div.classList.add("chat-message-user");
+  else if (role === "assistant") div.classList.add("chat-message-assistant");
+  else div.classList.add("chat-message-error");
+  div.textContent = text;
+  chatMessagesEl.appendChild(div);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
+
+async function handleChatSubmit(message: string) {
+  if (!lastScanData || !isAIAvailable() || isChatSending) return;
+  if (!message.trim()) return;
+
+  isChatSending = true;
+  if (chatSendBtn) chatSendBtn.disabled = true;
+
+  appendChatMessage("user", message.trim());
+  const userMsg: ChatMessage = { role: "user", content: message.trim() };
+  chatHistory.push(userMsg);
+
+  try {
+    const response = await callBackendForChat(lastScanData, chatHistory, message.trim());
+    const answer = response.answer ?? "";
+    appendChatMessage("assistant", answer);
+    chatHistory.push({ role: "assistant", content: answer });
+    saveChatHistory();
+    incrementUnread();
+  } catch (err) {
+    console.error("[bodhi-leaf] Chat failed:", err);
+    appendChatMessage("error", "Sorry, the product chat is unavailable right now. Please try again in a moment.");
+  } finally {
+    isChatSending = false;
+    if (chatSendBtn) chatSendBtn.disabled = false;
+  }
+}
+
+chatForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const value = chatInput?.value ?? "";
+  if (!value.trim()) return;
+  if (chatInput) chatInput.value = "";
+  handleChatSubmit(value);
+});
+
+// Review filtering
+let currentSentiment = "all";
+reviewSearch?.addEventListener("input", () => {
+  filterReviews(currentSentiment, reviewSearch.value);
+});
+
+document.querySelectorAll(".review-sentiment-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".review-sentiment-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentSentiment = (btn as HTMLElement).dataset.sentiment || "all";
+    filterReviews(currentSentiment, reviewSearch?.value || "");
+  });
 });

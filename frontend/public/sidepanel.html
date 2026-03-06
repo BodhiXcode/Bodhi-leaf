@@ -13,6 +13,33 @@
 </head>
 
 <body>
+    <!-- Hidden SVG color-blind filter bank -->
+    <svg id="a11y-filters" aria-hidden="true" focusable="false">
+        <defs>
+            <filter id="f-protanopia">
+                <feColorMatrix type="matrix" values="
+            0.567, 0.433, 0,     0, 0
+            0.558, 0.442, 0,     0, 0
+            0,     0.242, 0.758, 0, 0
+            0,     0,     0,     1, 0" />
+            </filter>
+            <filter id="f-deuteranopia">
+                <feColorMatrix type="matrix" values="
+            0.625, 0.375, 0,   0, 0
+            0.700, 0.300, 0,   0, 0
+            0,     0.300, 0.7, 0, 0
+            0,     0,     0,   1, 0" />
+            </filter>
+            <filter id="f-tritanopia">
+                <feColorMatrix type="matrix" values="
+            0.950, 0.050, 0,     0, 0
+            0,     0.433, 0.567, 0, 0
+            0,     0.475, 0.525, 0, 0
+            0,     0,     0,     1, 0" />
+            </filter>
+        </defs>
+    </svg>
+
     <div id="container">
         <!-- Header -->
         <header id="header">
@@ -23,102 +50,107 @@
                     <p class="header-sub">Commerce Copilot</p>
                 </div>
             </div>
-            <div class="header-actions">
-                <button id="zen-btn" class="zen-disabled" aria-disabled="true">
-                    <svg class="zen-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                    Zen
-                </button>
-                <button id="lbtn">
-                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    Scan
-                </button>
-                <button id="close-btn" title="Close panel"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-            </div>
         </header>
 
-        <!-- Status -->
-        <div id="status">
-            <span class="status-icon">🔍</span>
-            Open an Amazon product page and tap <strong>Scan Page</strong> to begin.
+        <!-- Header Actions Row -->
+        <div class="header-actions">
+            <button id="a11y-toggle-btn" title="Accessibility — font size, spacing, color modes"
+                aria-label="Accessibility settings" aria-expanded="false">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="4.5" r="2.5" />
+                    <path d="M12 7v5.5M8 10h8M9 21l3-8.5 3 8.5" />
+                </svg>
+                Aa
+            </button>
+            <button id="zen-btn" class="zen-disabled" aria-disabled="true">
+                <svg class="zen-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path
+                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                Zen
+            </button>
+            <button id="lbtn">
+                <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Scan
+            </button>
+            <button id="close-btn" title="Close panel" aria-label="Close panel">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
         </div>
 
-        <!-- Skeleton loader -->
-        <div id="skeleton" style="display:none">
-            <div class="skel-card">
-                <div class="skel-line skel-line--title"></div>
-                <div class="skel-line skel-line--body"></div>
-                <div class="skel-line skel-line--body skel-line--short"></div>
+        <!-- Accessibility Panel -->
+        <div id="a11y-panel" role="region" aria-label="Accessibility settings" hidden>
+            <div class="a11y-section">
+                <span class="a11y-label">Font Size</span>
+                <div class="a11y-controls" role="group" aria-label="Font size controls">
+                    <button class="a11y-btn" id="font-decrease" aria-label="Decrease font size"
+                        title="Decrease font size">A−</button>
+                    <span class="a11y-value" id="font-size-display" aria-live="polite">100%</span>
+                    <button class="a11y-btn" id="font-increase" aria-label="Increase font size"
+                        title="Increase font size">A+</button>
+                </div>
             </div>
-            <div class="skel-card">
-                <div class="skel-line skel-line--title"></div>
-                <div class="skel-line skel-line--body"></div>
+            <div class="a11y-divider" role="separator"></div>
+            <div class="a11y-section">
+                <span class="a11y-label">Letter Spacing</span>
+                <div class="a11y-controls" role="group" aria-label="Letter spacing controls">
+                    <button class="a11y-btn" id="spacing-decrease" aria-label="Decrease letter spacing"
+                        title="Decrease letter spacing">T−</button>
+                    <span class="a11y-value" id="spacing-display" aria-live="polite">Normal</span>
+                    <button class="a11y-btn" id="spacing-increase" aria-label="Increase letter spacing"
+                        title="Increase letter spacing">T+</button>
+                </div>
             </div>
-            <div class="skel-card">
-                <div class="skel-line skel-line--title"></div>
-                <div class="skel-line skel-line--body"></div>
-                <div class="skel-line skel-line--body skel-line--short"></div>
-                <div class="skel-line skel-line--body"></div>
+            <div class="a11y-divider" role="separator"></div>
+            <div class="a11y-section">
+                <span class="a11y-label">Color Mode</span>
+                <div class="a11y-color-modes" role="group" aria-label="Color blind mode">
+                    <button class="a11y-mode-btn active" data-mode="normal" aria-pressed="true"
+                        title="Normal colors">Normal</button>
+                    <button class="a11y-mode-btn" data-mode="protanopia" aria-pressed="false"
+                        title="Red-blind (Protanopia)">Protan</button>
+                    <button class="a11y-mode-btn" data-mode="deuteranopia" aria-pressed="false"
+                        title="Green-blind (Deuteranopia)">Deuter</button>
+                    <button class="a11y-mode-btn" data-mode="tritanopia" aria-pressed="false"
+                        title="Blue-blind (Tritanopia)">Tritan</button>
+                    <button class="a11y-mode-btn" data-mode="high-contrast" aria-pressed="false"
+                        title="High contrast">Hi-Con</button>
+                </div>
             </div>
         </div>
 
-        <!-- Data cards -->
-        <section id="data-cards">
-            <!-- Product image -->
-            <div class="card" id="card-image" style="display:none">
-                <img id="val-image" class="product-image" src="" alt="Product" />
-            </div>
+        <!-- Tabs: Insights / Details / Profile -->
+        <div class="tabs" role="tablist" aria-label="Main tabs">
+            <button id="tab-details-btn" class="tab-btn active" role="tab" aria-selected="true">Details</button>
+            <button id="tab-insights-btn" class="tab-btn" role="tab" aria-selected="false">Insights</button>
+            <button id="tab-profile-btn" class="tab-btn" role="tab" aria-selected="false">Profile</button>
+        </div>
 
-            <!-- Title & brand -->
-            <div class="card" id="card-title" style="display:none">
-                <div class="card-label">Product</div>
-                <div class="card-value card-value--title" id="val-title"></div>
-                <div class="card-meta-brand" id="val-brand"></div>
-            </div>
-
-            <!-- Price block -->
-            <div class="card" id="card-price" style="display:none">
-                <div class="card-label">Price</div>
-                <div class="price-row">
-                    <span class="card-value card-value--price" id="val-price"></span>
-                    <span class="price-mrp" id="val-mrp"></span>
-                    <span class="price-savings" id="val-savings"></span>
-                </div>
-                <div id="val-deal"></div>
-                <div id="val-coupon"></div>
-                <div id="val-emi"></div>
-            </div>
-
-            <!-- Availability & delivery -->
-            <div class="card" id="card-availability" style="display:none">
-                <div class="card-label">Availability</div>
-                <div class="availability-badge" id="val-availability"></div>
-                <div class="delivery-info" id="val-delivery"></div>
-                <div class="delivery-info" id="val-fastest-delivery"></div>
-            </div>
-
-            <!-- Features -->
-            <div class="card" id="card-features" style="display:none">
-                <div class="card-label">Key Features</div>
-                <ul class="feature-list" id="val-features"></ul>
-            </div>
-
-            <!-- Ratings -->
-            <div class="card" id="card-rating" style="display:none">
-                <div class="card-label">Ratings</div>
-                <div class="rating-hero">
-                    <span class="rating-big" id="val-rating-value"></span>
-                    <div class="rating-right">
-                        <div class="rating-stars" id="val-rating-stars"></div>
-                        <span class="rating-count" id="val-rating-count"></span>
-                    </div>
-                </div>
-                <div class="rating-histogram" id="rating-histogram"></div>
-                <div class="rating-filters" id="rating-filters"></div>
-            </div>
-
+        <!-- ══════════ TAB: Insights ══════════ -->
+        <div id="tab-insights" class="tab-content" style="display:none">
             <!-- AI Insights -->
-            <div class="card" id="card-insights" style="display:none">
-                <div class="card-label">AI Insights</div>
+            <div class="card bento-insights" id="card-insights" style="display:none">
+                <div class="insights-header">
+                    <div class="card-label">AI Insights</div>
+                    <button id="insights-refresh-btn" class="insights-refresh-btn" title="Refresh AI analysis">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
                 <div class="insights-deal-score" id="insights-deal-score"></div>
                 <div class="insights-pros-cons">
                     <div class="insights-group insights-pros">
@@ -131,27 +163,158 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Reviews -->
-            <div class="card" id="card-reviews" style="display:none">
-                <div class="card-label">Customer Reviews</div>
-                <div class="reviews-list" id="val-reviews"></div>
+        <!-- ══════════ TAB: Details ══════════ -->
+        <div id="tab-details" class="tab-content">
+            <!-- Status (shown before first scan) -->
+            <div id="status">
+                <span class="status-icon">🔍</span>
+                Open an Amazon product page and tap <strong>Scan Page</strong> to begin.
             </div>
 
-            <!-- Technical details -->
-            <div class="card" id="card-specs" style="display:none">
-                <div class="card-label">Technical Details</div>
-                <table class="specs-table" id="val-specs"></table>
+            <!-- Skeleton loader -->
+            <div id="skeleton" style="display:none">
+                <div class="bento-grid bento-grid--skeleton">
+                    <div class="skel-card bento-span-2">
+                        <div class="skel-line skel-line--title"></div>
+                        <div class="skel-line skel-line--body"></div>
+                        <div class="skel-line skel-line--body skel-line--short"></div>
+                    </div>
+                    <div class="skel-card">
+                        <div class="skel-line skel-line--title"></div>
+                        <div class="skel-line skel-line--body"></div>
+                    </div>
+                    <div class="skel-card">
+                        <div class="skel-line skel-line--title"></div>
+                        <div class="skel-line skel-line--body"></div>
+                        <div class="skel-line skel-line--body skel-line--short"></div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Seller info -->
-            <div class="card" id="card-seller" style="display:none">
-                <div class="card-label">Sold by</div>
-                <div class="card-value" id="val-seller"></div>
-            </div>
-        </section>
+            <section id="data-cards" class="bento-grid">
+                <div class="card bento-image" id="card-image" style="display:none">
+                    <img id="val-image" class="product-image" src="" alt="Product" />
+                </div>
+                <div class="card bento-title" id="card-title" style="display:none">
+                    <div class="card-label">Product</div>
+                    <div class="card-value card-value--title" id="val-title"></div>
+                    <div class="card-meta-brand" id="val-brand"></div>
+                </div>
+                <div class="card bento-price" id="card-price" style="display:none">
+                    <div class="card-label">Price</div>
+                    <div class="price-row">
+                        <span class="card-value card-value--price" id="val-price"></span>
+                        <span class="price-mrp" id="val-mrp"></span>
+                        <span class="price-savings" id="val-savings"></span>
+                    </div>
+                    <div id="val-deal"></div>
+                    <div id="val-coupon"></div>
+                    <div id="val-emi"></div>
+                </div>
+                <div class="card bento-availability" id="card-availability" style="display:none">
+                    <div class="card-label">Availability</div>
+                    <div class="availability-badge" id="val-availability"></div>
+                    <div class="delivery-info" id="val-delivery"></div>
+                    <div class="delivery-info" id="val-fastest-delivery"></div>
+                </div>
+                <div class="card bento-rating" id="card-rating" style="display:none">
+                    <div class="card-label">Ratings</div>
+                    <div class="rating-hero">
+                        <span class="rating-big" id="val-rating-value"></span>
+                        <div class="rating-right">
+                            <div class="rating-stars" id="val-rating-stars"></div>
+                            <span class="rating-count" id="val-rating-count"></span>
+                        </div>
+                    </div>
+                    <div class="rating-histogram" id="rating-histogram"></div>
+                    <div class="rating-filters" id="rating-filters"></div>
+                </div>
+                <div class="card bento-features" id="card-features" style="display:none">
+                    <div class="card-label">Key Features</div>
+                    <ul class="feature-list" id="val-features"></ul>
+                </div>
+                <div class="card bento-reviews" id="card-reviews" style="display:none">
+                    <div class="card-label">Customer Reviews</div>
+                    <div class="review-toolbar">
+                        <input id="review-search" class="review-search-input" type="text"
+                            placeholder="Search reviews…" autocomplete="off" />
+                        <div class="review-sentiment-filters">
+                            <button class="review-sentiment-btn active" data-sentiment="all">All</button>
+                            <button class="review-sentiment-btn" data-sentiment="positive">Positive</button>
+                            <button class="review-sentiment-btn" data-sentiment="negative">Critical</button>
+                        </div>
+                    </div>
+                    <div class="reviews-list" id="val-reviews"></div>
+                </div>
+                <div class="card bento-specs" id="card-specs" style="display:none">
+                    <div class="card-label">Technical Details</div>
+                    <table class="specs-table" id="val-specs"></table>
+                </div>
+                <div class="card bento-seller" id="card-seller" style="display:none">
+                    <div class="card-label">Sold by</div>
+                    <div class="card-value" id="val-seller"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ══════════ TAB: Profile ══════════ -->
+        <div id="tab-profile" class="tab-content" style="display:none">
+            <section id="user-profile" class="user-profile">
+                <div class="card profile-card">
+                    <div class="card-label">Your Preferences</div>
+                    <div id="user-profile-body" class="profile-body">
+                        <p class="profile-empty">
+                            No preferences saved yet. Open Zen Mode and answer the quick quiz to personalize matches.
+                        </p>
+                    </div>
+                    <button id="profile-reset-btn" class="profile-reset-btn" type="button">
+                        Reset all preferences
+                    </button>
+                </div>
+            </section>
+        </div>
     </div>
+
+    <!-- ══════════ Floating Chat ══════════ -->
+    <button id="chat-fab" class="chat-fab" title="Product Chat" aria-label="Open product chat">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span id="chat-badge" class="chat-badge" style="display:none"></span>
+    </button>
+
+    <div id="chat-overlay" class="chat-overlay" style="display:none">
+        <div class="chat-overlay-header">
+            <span class="chat-overlay-title">Product Chat</span>
+            <button id="chat-overlay-close" class="chat-overlay-close" title="Close chat" aria-label="Close chat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <div id="chat-suggestions" class="chat-suggestions"></div>
+        <form id="chat-form" class="chat-form">
+            <input id="chat-input" class="chat-input" type="text" name="message"
+                placeholder="Ask about this product…" autocomplete="off" />
+            <button id="chat-send-btn" class="chat-send-btn" type="submit" aria-label="Send">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+            </button>
+        </form>
+        <p id="chat-hint" class="chat-hint">Powered by AI — scoped to this product only.</p>
+    </div>
+
     <script src="sidepanel/sidepanel.js"></script>
+    <script src="sidepanel/a11y.js"></script>
 </body>
 
 </html>

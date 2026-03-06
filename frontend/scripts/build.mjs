@@ -43,6 +43,7 @@ const buildOptions = {
     "src/background/service-worker.ts",
     "src/content/content-script.ts",
     "src/sidepanel/sidepanel.ts",
+    "src/sidepanel/a11y.ts",
   ],
   bundle: true,
   outdir: "dist",

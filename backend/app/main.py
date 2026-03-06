@@ -8,8 +8,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from app.models import ProductData, InsightsResponse, TTSRequest, TTSResponse, HealthResponse
-from app.services.bedrock import analyze_product
+from app.models import (
+    ProductData, InsightsResponse, TTSRequest, TTSResponse, HealthResponse,
+    ChatRequest, ChatResponse, QuizRequest, QuizResponse,
+    TranslateRequest, TranslateResponse,
+    RecommendationRequest, RecommendationResponse,
+)
+from app.services.bedrock import analyze_product, chat_with_product, generate_quiz, translate_text, generate_recommendations
 from app.services.polly import synthesize_speech
 
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +64,50 @@ async def get_tts(request: TTSRequest):
     except Exception as e:
         logger.error(f"Polly TTS failed: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"TTS synthesis failed: {str(e)}")
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        answer = await chat_with_product(request.product, request.history, request.message)
+        return ChatResponse(answer=answer)
+    except Exception as e:
+        logger.error(f"Bedrock chat failed: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Chat failed: {str(e)}")
+
+
+@app.post("/api/quiz", response_model=QuizResponse)
+async def get_quiz(request: QuizRequest):
+    try:
+        questions = await generate_quiz(request.product)
+        return QuizResponse(questions=questions)
+    except Exception as e:
+        logger.error(f"Quiz generation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Quiz generation failed: {str(e)}")
+
+
+@app.post("/api/translate", response_model=TranslateResponse)
+async def translate(request: TranslateRequest):
+    try:
+        translated = await translate_text(request.text, request.target_lang)
+        return TranslateResponse(translated=translated, target_lang=request.target_lang)
+    except Exception as e:
+        logger.error(f"Translation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Translation failed: {str(e)}")
+
+
+@app.post("/api/recommendations", response_model=RecommendationResponse)
+async def get_recommendations(request: RecommendationRequest):
+    try:
+        result = await generate_recommendations(request.product, request.preferences)
+        return RecommendationResponse(
+            tips=result.get("tips", []),
+            lookFor=result.get("lookFor", []),
+            avoid=result.get("avoid", []),
+        )
+    except Exception as e:
+        logger.error(f"Recommendations failed: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Recommendations failed: {str(e)}")
 
 
 handler = Mangum(app, lifespan="off", api_gateway_base_path="/prod")
