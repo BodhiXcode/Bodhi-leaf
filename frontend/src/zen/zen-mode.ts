@@ -1552,7 +1552,11 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     if (stopBtn) { stopBtn.removeAttribute("disabled"); stopBtn.style.opacity = "1"; stopBtn.style.pointerEvents = "auto"; }
   }
 
+  const wiredAudios = new WeakSet<HTMLAudioElement>();
+
   function wireAudioEvents(audio: HTMLAudioElement) {
+    if (wiredAudios.has(audio)) return;
+    wiredAudios.add(audio);
     audio.addEventListener("play", () => setPlaying(true));
     audio.addEventListener("pause", () => setPlaying(false));
     audio.addEventListener("ended", () => { setPlaying(false); progressFill.style.width = "100%"; });
@@ -1575,6 +1579,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     if (lang === "en") {
       const enAudio = (window as any).__bodhiPollyAudioEn;
       if (enAudio) {
+        wireAudioEvents(enAudio);
         (window as any).__bodhiPollyAudio = enAudio;
         toggleBtn.setAttribute("data-polly", "true");
         enablePlayback("Ready");
@@ -1585,6 +1590,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     const cacheKey = `__bodhiPollyAudio_${lang}`;
     const cached = (window as any)[cacheKey] as HTMLAudioElement | undefined;
     if (cached) {
+      wireAudioEvents(cached);
       cached.currentTime = 0;
       (window as any).__bodhiPollyAudio = cached;
       toggleBtn.setAttribute("data-polly", "true");
