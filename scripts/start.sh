@@ -24,7 +24,7 @@ echo "[backend] Installing dependencies..."
 "$BACKEND_DIR/.venv/bin/pip" install -q -r "$BACKEND_DIR/requirements.txt"
 
 echo "[backend] Starting uvicorn on http://localhost:8000 ..."
-"$BACKEND_DIR/.venv/bin/uvicorn" app.main:app --reload --port 8000 --app-dir "$BACKEND_DIR" &
+"$BACKEND_DIR/.venv/bin/uvicorn" app.main:app --reload --reload-dir "$BACKEND_DIR/app" --port 8000 --app-dir "$BACKEND_DIR" &
 BACKEND_PID=$!
 
 # ── Frontend ──
