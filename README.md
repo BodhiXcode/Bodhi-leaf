@@ -1,12 +1,27 @@
 # Bodhi Leaf: ACC
 
-**Your Adaptive Commerce Copilot** -- a Chrome extension + AWS backend that surfaces AI-powered product intelligence from Amazon product pages.
+**Your Adaptive Commerce Copilot** -- a Chrome/Brave extension + AWS backend that surfaces AI-powered product intelligence from Amazon product pages.
 
 ## What It Does
 
-Bodhi Leaf adds a side panel to Chrome that lets you scan any Amazon product page with one click. It scrapes the page's DOM in real-time and presents the extracted data in a clean, card-based dark UI -- giving you a distraction-free summary of everything that matters about a product.
+Bodhi Leaf adds a side panel to Chrome (or Brave) that lets you scan any Amazon product page with one click. It scrapes the page's DOM in real-time and presents the extracted data across organized tabs — **Details**, **Insights**, and **Profile** — in a clean dark UI.
 
-An AWS backend (Lambda + API Gateway) powers real-time AI insights via Amazon Bedrock (Claude Haiku) and natural-sounding TTS via Amazon Polly. If the backend is unreachable, the extension falls back gracefully to local keyword-based analysis and browser SpeechSynthesis.
+An AWS backend (Lambda + API Gateway) powers real-time AI insights via Amazon Bedrock (Nova Micro) and natural-sounding multilingual TTS via Amazon Polly. If the backend is unreachable, the extension falls back gracefully to local keyword-based analysis.
+
+### Key Features
+
+| Feature | Description |
+|---|---|
+| **Product Details** | Title, brand, price, savings, delivery, specs, reviews — all extracted in one scan |
+| **AI Insights** | Deal score (0-10) with animated ring, pros/cons, verdict, star breakdown, seller analysis, new version alerts |
+| **Zen Mode** | Full-page interactive overlay on the Amazon page with TTS playback, AI verdict, specs, ratings, and product quiz |
+| **Multilingual TTS** | Text-to-speech via Amazon Polly (Kajal voice) in 9 languages: English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam |
+| **AI Chat** | Floating chat overlay to ask product-specific questions, with contextual suggestion chips |
+| **Product Quiz** | "Is This Right for You?" — AI-generated quiz that evaluates product fit based on your needs |
+| **Shopper Profile** | Tracks browsing history, categories, avg ratings, and quiz preferences across sessions |
+| **Layman Specs** | Technical specs explained in plain English (e.g. "RTX 5050" → what it means for you) |
+| **Accessibility** | Font size, letter spacing, and color blind mode controls |
+| **Smart Detection** | Shows message on non-Amazon shopping sites, disables panel on non-product pages |
 
 ### Extracted Data
 
@@ -19,23 +34,23 @@ An AWS backend (Lambda + API Gateway) powers real-time AI insights via Amazon Be
 | **Ratings** | Overall rating, total count, filterable star distribution |
 | **Reviews** | Up to 10 reviews with author, date, stars, and expandable body text |
 | **Specs** | Full technical details table |
-| **Seller** | Buy box seller name |
-| **AI Insights** | Deal score (0-10), pros, cons, verdict -- powered by Amazon Bedrock |
+| **Seller** | Buy box seller name + AI-powered seller vs product issue analysis |
+| **AI Insights** | Deal score, pros, cons, verdict, star breakdown, layman spec explanations, chat suggestions |
 
 ## Tech Stack
 
 ### Frontend (Chrome Extension)
 
 - **TypeScript 5.9** (strict mode)
-- **esbuild** for bundling
+- **esbuild** for bundling with environment variable injection
 - **Chrome Extension Manifest v3** (`sidePanel`, `scripting`, `activeTab`, `storage`)
-- **Plain CSS** with custom properties (Apple-inspired dark theme)
+- **Plain CSS** with custom properties (dark theme)
 
 ### Backend (AWS)
 
 - **Python 3.12** with **FastAPI**
-- **Amazon Bedrock** (Claude 3 Haiku) for AI product analysis
-- **Amazon Polly** (Kajal generative voice, Indian English) for TTS
+- **Amazon Bedrock** (Nova Micro) for AI product analysis, chat, quiz generation, and translation
+- **Amazon Polly** (Kajal generative voice) for multilingual TTS (en-IN, hi-IN)
 - **AWS Lambda** + **API Gateway HTTP API** for serverless hosting
 - **AWS SAM** for infrastructure-as-code deployment
 - **Mangum** as the Lambda/ASGI adapter
@@ -51,9 +66,16 @@ Bodhi-leaf/
 │   ├── src/
 │   │   ├── background/           # Service worker (opens side panel on icon click)
 │   │   ├── content/              # Content script (page metadata)
-│   │   ├── sidepanel/            # Side panel UI, CSS, portal animation
+│   │   ├── sidepanel/            # Side panel UI + CSS + accessibility module
+│   │   │   ├── sidepanel.ts      # Main panel logic (tabs, chat, profile, history)
+│   │   │   ├── sidepanel.css     # All panel styles
+│   │   │   └── a11y.ts           # Accessibility controls (font, spacing, color modes)
 │   │   ├── zen/                  # Zen Mode overlay + local insights engine
+│   │   │   ├── zen-mode.ts       # Full overlay: TTS, quiz, specs, seller, language switch
+│   │   │   └── zen-insights.ts   # Insights engine (Bedrock AI + local fallback + TTS script)
 │   │   └── config/               # CSS selectors, backend API client
+│   │       ├── ai.ts             # API client (insights, TTS, chat, quiz, translate, recommendations)
+│   │       └── selectors.ts      # Amazon DOM selectors for scraping
 │   ├── public/                   # Static assets (manifest.json, sidepanel.html, icons)
 │   ├── scripts/build.mjs         # esbuild bundler + env injection
 │   ├── dist/                     # Build output — load this as the extension
@@ -65,8 +87,8 @@ Bodhi-leaf/
 │   │   ├── main.py               # FastAPI app, CORS, routes, Mangum handler
 │   │   ├── models.py             # Pydantic request/response schemas
 │   │   └── services/
-│   │       ├── bedrock.py        # Amazon Bedrock (Claude Haiku) wrapper
-│   │       └── polly.py          # Amazon Polly TTS wrapper
+│   │       ├── bedrock.py        # Amazon Bedrock wrapper (insights, chat, quiz, translate, recommendations)
+│   │       └── polly.py          # Amazon Polly TTS wrapper (multilingual)
 │   ├── template.yaml             # AWS SAM template (Lambda + API Gateway)
 │   ├── requirements.txt          # Python dependencies
 │   ├── .env                      # AWS credentials + config (not committed)
@@ -172,16 +194,20 @@ npm run dev                    # watch mode, or: npm run build (one-off)
 |---|---|---|
 | `AWS_ACCESS_KEY_ID` | Your personal AWS access key (from IAM console) | *required* |
 | `AWS_SECRET_ACCESS_KEY` | Your personal AWS secret key (from IAM console) | *required* |
-| `AWS_REGION` | AWS region for Bedrock + Polly calls | `us-east-1` |
-| `BEDROCK_MODEL_ID` | Bedrock model to use | `anthropic.claude-3-haiku-20240307-v1:0` |
+| `AWS_REGION` | AWS region for all AWS services | `us-east-1` |
+| `BEDROCK_MODEL_ID` | Bedrock model to use | `us.amazon.nova-micro-v1:0` |
 
 ## API Endpoints
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/health` | Health check -- returns `{ status, service, region }` |
-| `POST` | `/api/insights` | Send scraped product data, get AI insights (summary, pros, cons, deal score, verdict) |
-| `POST` | `/api/tts` | Send text, get base64-encoded MP3 audio (Polly Kajal voice) |
+| `POST` | `/api/insights` | Send scraped product data, get AI insights (summary, pros, cons, deal score, verdict, star breakdown, seller analysis, layman specs, TTS script) |
+| `POST` | `/api/tts` | Send text + language_code, get base64-encoded MP3 audio (Polly Kajal voice, supports `en-IN` and `hi-IN`) |
+| `POST` | `/api/chat` | Product-aware chat — send message + product context + history, get AI response |
+| `POST` | `/api/quiz` | Generate AI-powered product-fit quiz questions from product data |
+| `POST` | `/api/translate` | Translate text to any Indian language via Bedrock (Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam) |
+| `POST` | `/api/recommendations` | Get product recommendations based on quiz preferences |
 
 Interactive API docs (Swagger UI) available at `http://localhost:8000/docs` when running locally.
 
@@ -245,11 +271,26 @@ Reload the extension in Chrome to pick up the new API URL.
 After scanning, click **Zen** to open an interactive overlay on the Amazon page:
 
 - **Product summary** with image, price, rating, and savings at a glance
-- **Text-to-Speech** via Amazon Polly (Kajal generative voice, Indian English) with play/pause/stop and speed control
-- **AI Insights** -- deal score (0-10) with animated ring, pros and cons from Bedrock analysis
-- **Quick Specs** -- top 6 specs selected by priority in a clean grid
-- **Draggable** -- grab the header to reposition anywhere on screen
-- **Minimize/Close** -- collapse to header only or dismiss entirely
+- **Multilingual TTS** via Amazon Polly (Kajal voice) — 9 Indian languages with seekable progress bar, speed control, and volume slider
+- **AI Verdict** — deal score (0-10) with animated ring, pros/cons side-by-side from Bedrock analysis
+- **Quick Specs** — top 6 specs in a responsive grid + star-wise rating breakdown with top issues
+- **Layman Explanations** — technical specs translated to plain English
+- **"Is This Right for You?"** — AI-generated product-fit quiz with match score and usefulness graph
+- **Seller Check** — AI analysis of whether negative reviews are seller-related or product-related
+- **New Version Alert** — warns if a newer model is available or launching soon
+- **Playback Card** — time display, volume control, narration outline showing what topics are covered
+- **Draggable** — grab the header to reposition anywhere on screen
+- **Minimize/Close** — collapse to header only or dismiss entirely
+
+## Side Panel
+
+The side panel is organized into three tabs:
+
+- **Details** (default) — all scraped product data in a card-based bento grid layout
+- **Insights** — AI-powered analysis with deal score, pros/cons, layman specs, and star breakdown
+- **Profile** — browsing history, shopper stats (products scanned, categories, avg rating), and quiz preferences
+
+A **floating chat button** opens a slide-up chat overlay for product-specific questions with suggestion chips.
 
 ## Debugging
 
@@ -268,9 +309,9 @@ curl http://localhost:8000/api/health
 |---|---|
 | Lambda | ~$0.00 (free tier) |
 | API Gateway HTTP API | ~$0.00 (free tier) |
-| Bedrock Claude Haiku | ~$0.50/hackathon |
+| Bedrock Nova Micro | ~$0.10/hackathon (cheapest Bedrock model) |
 | Polly Generative | ~$0.50/hackathon |
-| **Total** | **< $2** |
+| **Total** | **< $1** |
 
 ## Scripts Reference
 
