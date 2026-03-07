@@ -37,7 +37,12 @@ const chatSuggestions = document.getElementById("chat-suggestions");
 const reviewSearch = document.getElementById("review-search") as HTMLInputElement | null;
 const profileSection = document.getElementById("user-profile");
 const profileBody = document.getElementById("user-profile-body");
+const profileHistory = document.getElementById("profile-history");
 const profileResetBtn = document.getElementById("profile-reset-btn") as HTMLButtonElement | null;
+const profileClearHistoryBtn = document.getElementById("profile-clear-history-btn") as HTMLButtonElement | null;
+const statProducts = document.getElementById("stat-products");
+const statCategories = document.getElementById("stat-categories");
+const statAvgRating = document.getElementById("stat-avg-rating");
 // Tabs
 const tabInsightsBtn = document.getElementById("tab-insights-btn") as HTMLButtonElement | null;
 const tabDetailsBtn = document.getElementById("tab-details-btn") as HTMLButtonElement | null;
@@ -254,156 +259,149 @@ function bindReviewToggles() {
 
 type PrefStore = Record<string, Record<string, string>>;
 
+interface PrefEntry {
+  value: string;
+  question: string;
+  label: string;
+}
+
+function parsePrefEntry(raw: string): PrefEntry {
+  try {
+    const p = JSON.parse(raw);
+    if (p && p.v) return { value: p.v, question: p.q || "", label: p.l || p.v };
+  } catch { /* old format — raw string value */ }
+
+  const hardcodedLabels: Record<string, Record<string, string>> = {
+    budget: { low: "Save Money", mid: "Balanced", high: "Premium Quality" },
+    usage: { daily: "Every Day", weekly: "Few Times/Week", occasional: "Occasionally" },
+    brand: { high: "Very Important", mid: "Somewhat", low: "Not Important" },
+    durability: { high: "Built to Last", mid: "Decent Quality", low: "Short-term" },
+  };
+  return { value: raw, question: "", label: raw };
+}
+
+function humanLabel(key: string): string {
+  const map: Record<string, string> = {
+    budget: "Budget Priority",
+    usage: "Usage Frequency",
+    brand: "Brand Trust",
+    phone_use: "Phone Purpose",
+    laptop_use: "Laptop Purpose",
+    monitor_use: "Monitor Purpose",
+    audio_use: "Audio Purpose",
+    durability: "Durability Need",
+    battery_importance: "Battery Life",
+    connectivity: "Wireless Pref.",
+    camera_priority: "Camera Use",
+  };
+  return map[key] || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function renderUserProfile(store: PrefStore) {
-  if (!profileBody || !profileSection) return;
+  if (!profileBody) return;
   const categories = Object.keys(store);
-  if (categories.length === 0) {
-    profileBody.innerHTML = `<div class="profile-empty-state">
-      <div class="profile-empty-icon">🎯</div>
-      <h3>No Preferences Yet</h3>
-      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
-    </div>`;
+  const hasData = categories.some(c => Object.keys(store[c] || {}).length > 0);
+
+  if (!hasData) {
+    profileBody.innerHTML = `<p class="profile-empty-msg">
+      Open Zen Mode and take the quiz to build your shopper profile.
+    </p>`;
     return;
   }
 
-  // Helper: map internal keys/values to human-friendly text
-  function humanLabel(key: string) {
-    const map: Record<string, string> = {
-      budget: "Budget Priority",
-      usage: "How Often You'll Use It",
-      brand: "Brand Trust",
-      phone_use: "Phone Purpose",
-      laptop_use: "Laptop Purpose",
-      monitor_use: "Monitor Purpose",
-      audio_use: "Audio Purpose",
-      durability: "Durability Need",
-      battery_importance: "Battery Life Need",
-      connectivity: "Wireless Preference",
-      camera_priority: "Camera Use",
-    };
-    return map[key] || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function humanValue(key: string, val: string) {
-    const v = String(val);
-    const lookup: Record<string, Record<string, string>> = {
-      budget: { low: "💰 Save Money", mid: "⚖️ Balanced", high: "⭐ Premium Quality" },
-      usage: { daily: "📅 Every Day", weekly: "📆 Few Times/Week", occasional: "🗓️ Occasionally" },
-      brand: { high: "✅ Very Important", mid: "😐 Somewhat", low: "❌ Not Important" },
-      phone_use: { camera: "📸 Camera Focus", gaming: "🎮 Gaming", basic: "📞 Calls & Basics", battery: "🔋 Battery Life" },
-      laptop_use: { work: "💼 Work/Coding", gaming: "🎮 Gaming", casual: "🌐 Browsing/Media" },
-      monitor_use: { work: "💼 Productivity", gaming: "🎮 Gaming", creative: "🎨 Content Creation" },
-      audio_use: { music: "🎵 Music", calls: "📞 Calls/Meetings", gaming: "🎮 Gaming", commute: "🚇 Commute", workout: "💪 Workout", home: "🏠 Home Use" },
-      durability: { high: "🏗️ Built to Last", mid: "📦 Decent Quality", low: "💨 Short-term" },
-      battery_importance: { high: "🔋 All Day (8+ hrs)", mid: "🔋 Moderate (4-6 hrs)", low: "🔌 Charge Often" },
-      connectivity: { essential: "📡 Must Be Wireless", preferred: "📶 Nice to Have", no: "🔌 Wired is Fine" },
-      camera_priority: { content: "🎬 Content Creation", social: "📱 Social Media", basic: "📹 Video Calls" },
-    };
-    return (lookup[key] && lookup[key][v]) || v;
-  }
-
-  // Helper: get score for visualization
-  function getScoreForPref(key: string, val: string): number {
-    const scoreMap: Record<string, Record<string, number>> = {
-      budget: { low: 30, mid: 65, high: 90 },
-      usage: { daily: 90, weekly: 60, occasional: 30 },
-      brand: { high: 90, mid: 60, low: 30 },
-      durability: { high: 90, mid: 60, low: 30 },
-      battery_importance: { high: 90, mid: 60, low: 30 },
-    };
-    return (scoreMap[key] && scoreMap[key][val]) || 50;
-  }
-
-  // Helper: get color based on score
-  function getScoreColor(score: number): string {
-    if (score >= 70) return "#34c759";
-    if (score >= 40) return "#f5a623";
-    return "#ff453a";
-  }
-
   let html = "";
-
-  // Summary stats
-  let totalPrefs = 0;
-  let totalScore = 0;
 
   for (const category of categories) {
     const prefs = store[category] || {};
     const prefKeys = Object.keys(prefs);
     if (prefKeys.length === 0) continue;
 
-    // Calculate category score
-    let catScore = 0;
-    prefKeys.forEach(key => {
-      const score = getScoreForPref(key, prefs[key]);
-      catScore += score;
-      totalScore += score;
-      totalPrefs++;
-    });
-    const avgScore = Math.round(catScore / prefKeys.length);
-    const catColor = getScoreColor(avgScore);
+    const catLabel = category.charAt(0).toUpperCase() + category.slice(1);
 
-    const label = category.charAt(0).toUpperCase() + category.slice(1);
-
-    // Build preference bars
-    const prefBars = prefKeys.map((key) => {
-      const val = prefs[key];
-      const score = getScoreForPref(key, val);
-      const color = getScoreColor(score);
-      const humanVal = humanValue(key, val);
-      // Strip emoji from humanVal for the bar
-      const cleanLabel = humanVal.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").trim();
-      const emoji = humanVal.match(/[\u{1F300}-\u{1F9FF}]/gu)?.[0] || "📊";
-
-      return `<div class="profile-pref-bar">
-        <div class="profile-pref-bar-header">
-          <span class="profile-pref-bar-label">${escapeHtml(emoji)} ${escapeHtml(humanLabel(key))}</span>
-          <span class="profile-pref-bar-value">${escapeHtml(cleanLabel)}</span>
-        </div>
-        <div class="profile-pref-bar-track">
-          <div class="profile-pref-bar-fill" style="width: ${score}%; background: ${color};"></div>
-        </div>
+    const rows = prefKeys.map(key => {
+      const entry = parsePrefEntry(prefs[key]);
+      const qLabel = entry.question || humanLabel(key);
+      return `<div class="pref-row">
+        <span class="pref-question">${escapeHtml(qLabel)}</span>
+        <span class="pref-answer">${escapeHtml(entry.label)}</span>
       </div>`;
     }).join("");
 
-    html += `<div class="profile-category">
-      <div class="profile-category-header">
-        <div class="profile-category-title">${escapeHtml(label)}</div>
-        <div class="profile-category-score" style="color: ${catColor}">${avgScore}% Match</div>
-      </div>
-      <div class="profile-pref-bars">${prefBars}</div>
+    html += `<div class="pref-group">
+      <div class="pref-group-title">${escapeHtml(catLabel)}</div>
+      ${rows}
     </div>`;
   }
 
-  // Overall match score
-  const overallScore = totalPrefs > 0 ? Math.round(totalScore / totalPrefs) : 0;
-  const overallColor = getScoreColor(overallScore);
+  profileBody.innerHTML = html;
+}
 
-  const overallHtml = `<div class="profile-overall">
-    <div class="profile-overall-label">Your Shopping Profile</div>
-    <div class="profile-overall-score">
-      <div class="profile-overall-ring" style="--score-color: ${overallColor}; --score-pct: ${overallScore}">
-        <span class="profile-overall-number" style="color: ${overallColor}">${overallScore}</span>
-        <span class="profile-overall-unit">%</span>
+function renderHistory(history: HistoryEntry[]) {
+  if (!profileHistory) return;
+  if (!history || history.length === 0) {
+    profileHistory.innerHTML = `<p class="profile-empty-msg">No products scanned yet.</p>`;
+    return;
+  }
+
+  profileHistory.innerHTML = history.slice(0, 15).map(item => {
+    const ago = timeAgo(item.ts);
+    const img = item.image
+      ? `<img class="history-thumb" src="${escapeHtml(item.image)}" alt="" />`
+      : `<div class="history-thumb history-thumb--placeholder">
+           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+         </div>`;
+    const title = item.title.length > 55 ? item.title.substring(0, 55) + "…" : item.title;
+    return `<a class="history-item" href="${escapeHtml(item.url)}" target="_blank" title="${escapeHtml(item.title)}">
+      ${img}
+      <div class="history-info">
+        <span class="history-title">${escapeHtml(title)}</span>
+        <span class="history-meta">${item.price ? escapeHtml(item.price) : ""} ${item.brand ? "· " + escapeHtml(item.brand) : ""}</span>
       </div>
-      <div class="profile-overall-text">Profile Strength</div>
-    </div>
-  </div>`;
+      <span class="history-time">${ago}</span>
+    </a>`;
+  }).join("");
+}
 
-  if (!html) {
-    profileBody.innerHTML = `<div class="profile-empty-state">
-      <div class="profile-empty-icon">🎯</div>
-      <h3>No Preferences Yet</h3>
-      <p>Open Zen Mode and take the quick quiz to get personalized product recommendations.</p>
-    </div>`;
-  } else {
-    profileBody.innerHTML = overallHtml + html;
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
+function updateStats(history: HistoryEntry[]) {
+  if (statProducts) statProducts.textContent = String(history.length);
+  if (statCategories) {
+    const cats = new Set(history.map(h => h.category));
+    statCategories.textContent = String(cats.size);
+  }
+  if (statAvgRating) {
+    const ratings = history.map(h => {
+      const m = (h.rating || "").match(/([\d.]+)/);
+      return m ? parseFloat(m[1]) : 0;
+    }).filter(r => r > 0);
+    statAvgRating.textContent = ratings.length > 0
+      ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+      : "—";
   }
 }
 
 function loadUserProfileFromTab() {
   if (!profileSection) return;
 
+  // Load browsing history from chrome.storage.local
+  chrome.storage.local.get(HISTORY_STORAGE_KEY, (result) => {
+    const history: HistoryEntry[] = result[HISTORY_STORAGE_KEY] || [];
+    renderHistory(history);
+    updateStats(history);
+  });
+
+  // Load quiz preferences from page localStorage
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tabId = tabs[0]?.id;
     if (!tabId) {
@@ -624,10 +622,62 @@ function requestPageData(ratingFilter?: string) {
   });
 }
 
+// ── Browsing history persistence ──
+const HISTORY_STORAGE_KEY = "__bodhiHistory";
+const HISTORY_MAX_ITEMS = 30;
+
+interface HistoryEntry {
+  title: string;
+  price: string;
+  image: string;
+  url: string;
+  brand: string;
+  rating: string;
+  category: string;
+  ts: number;
+}
+
+function detectProductCategory(title: string, features: string[]): string {
+  const text = `${title} ${features.join(" ")}`.toLowerCase();
+  if (/phone|smartphone|mobile|iphone/i.test(text)) return "Phones";
+  if (/laptop|notebook|macbook|chromebook/i.test(text)) return "Laptops";
+  if (/monitor|display(?! phone)/i.test(text)) return "Monitors";
+  if (/headphone|earphone|earbuds|headset|tws|speaker/i.test(text)) return "Audio";
+  if (/camera|dslr|mirrorless|gopro/i.test(text)) return "Cameras";
+  if (/tablet|ipad/i.test(text)) return "Tablets";
+  if (/keyboard|mouse|gaming/i.test(text)) return "Peripherals";
+  if (/watch|smartwatch|band/i.test(text)) return "Wearables";
+  if (/tv|television/i.test(text)) return "TVs";
+  return "Other";
+}
+
+function saveToHistory(data: any, url: string) {
+  if (!data.title || !url) return;
+  const entry: HistoryEntry = {
+    title: data.title,
+    price: data.price ? `₹${cleanPrice(data.price)}` : "",
+    image: data.mainImage || "",
+    url,
+    brand: data.brand ? cleanBrandName(data.brand) : "",
+    rating: data.ratingValue || "",
+    category: detectProductCategory(data.title, data.features || []),
+    ts: Date.now(),
+  };
+  chrome.storage.local.get(HISTORY_STORAGE_KEY, (result) => {
+    let history: HistoryEntry[] = result[HISTORY_STORAGE_KEY] || [];
+    history = history.filter(h => h.url !== url);
+    history.unshift(entry);
+    if (history.length > HISTORY_MAX_ITEMS) history = history.slice(0, HISTORY_MAX_ITEMS);
+    chrome.storage.local.set({ [HISTORY_STORAGE_KEY]: history });
+  });
+}
+
 // ── Populate ──
 function populatePanel(data: any, _ratingFilter?: string) {
   clearPanel();
   hideStatus();
+
+  saveToHistory(data, lastProductUrl);
 
   let staggerIdx = 0;
   function revealCard(card: HTMLElement | null) {
@@ -1024,7 +1074,15 @@ insightsRefreshBtn?.addEventListener("click", async () => {
   }
 });
 
-// User profile reset – clears all saved MCQ preferences for this origin
+// Clear browsing history
+profileClearHistoryBtn?.addEventListener("click", () => {
+  chrome.storage.local.remove(HISTORY_STORAGE_KEY, () => {
+    renderHistory([]);
+    updateStats([]);
+  });
+});
+
+// Reset quiz preferences
 profileResetBtn?.addEventListener("click", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tabId = tabs[0]?.id;
@@ -1035,9 +1093,7 @@ profileResetBtn?.addEventListener("click", () => {
       func: () => {
         try {
           localStorage.removeItem("__bodhiPrefs");
-        } catch {
-          // ignore
-        }
+        } catch { /* ignore */ }
       },
     }, () => {
       renderUserProfile({});
