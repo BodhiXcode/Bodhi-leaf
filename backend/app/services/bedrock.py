@@ -39,6 +39,8 @@ SYSTEM_PROMPT = (
 
 JSON_INSTRUCTIONS = (
     "Respond with ONLY a JSON object (no markdown, no code fences) with these exact keys:\n"
+    "CRITICAL: All double quotes inside JSON strings MUST be escaped as \\\", and all newlines MUST be escaped as \\n. "
+    "Check your JSON for syntax errors before responding.\n"
     '- "summary": 2-3 sentence plain-English summary a non-tech person can understand. '
     'Start with what the product IS, then whether it\'s worth buying.\n'
     '- "pros": array of 3-6 specific pros in simple language\n'
@@ -66,6 +68,8 @@ JSON_INSTRUCTIONS = (
     'about THIS specific product. Make them relevant and useful '
     '(e.g. "Is this good for music production?", "How long does the battery last?"). '
     'Tailor them to the product category.\n'
+    '- "optionsSummary": 1-2 sentences summarizing the available variations (colors, sizes, and any notable stock/price differences between them). '
+    'Summarize the Twister data if available. If no variations, say "No variations available."\n'
     '- "ttsScript": a 100-150 word narration script meant to be read aloud by a text-to-speech engine. '
     'Write it as a friendly, conversational product briefing — like a knowledgeable friend explaining '
     'the product over a phone call. Cover: what it is, price and any savings, rating highlights, '
@@ -120,6 +124,13 @@ def _build_prompt(product: ProductData) -> str:
         spec_lines = "\n".join(f"  - {s.label}: {s.value}" for s in product.specs[:10])
         parts.append(f"\nSpecifications:\n{spec_lines}")
 
+    if (product.variations or product.twisterData):
+        parts.append("\nAvailable Options (Twister/Variations):")
+        if product.variations:
+            parts.append(f"  - Labels: {', '.join(product.variations)}")
+        if product.twisterData:
+            parts.append(f"  - Raw Data: {product.twisterData[:1000]}")
+
     if product.reviews:
         parts.append("\nCustomer Reviews:")
         for review in product.reviews[:10]:
@@ -171,7 +182,20 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
             cleaned = cleaned[:-3]
         cleaned = cleaned.strip()
 
-    parsed = json.loads(cleaned)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse Bedrock JSON. Error: {e}")
+        logger.error(f"Raw Text: {raw_text[:2000]}")
+        # Attempt to find JSON object if it's wrapped in commentary
+        match = re.search(r'({.*})', cleaned, re.DOTALL)
+        if match:
+            try:
+                parsed = json.loads(match.group(1))
+            except:
+                raise e
+        else:
+            raise e
 
     deal_score = float(parsed.get("dealScore", 0))
     deal_score = round(min(max(deal_score, 0), 10), 1)
@@ -206,6 +230,7 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
         newVersionAlert=parsed.get("newVersionAlert", ""),
         specsExplained=specs_explained[:5],
         chatSuggestions=parsed.get("chatSuggestions", [])[:3],
+        optionsSummary=parsed.get("optionsSummary", ""),
         ttsScript=parsed.get("ttsScript", ""),
         source="bedrock",
     )
@@ -214,21 +239,48 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
 async def chat_with_product(product: ProductData, history: list, message: str) -> str:
     client = _get_client()
 
-    # Strict system prompt for boundaries
     CHAT_SYSTEM_PROMPT = (
-        "You are the Bodhi Leaf Shopping Assistant. Your ONLY goal is to answer questions about the SPECIFIC product provided. "
-        "Strictly refuse to answer any questions that are NOT about this product. "
-        "If a user asks about anything else, say: 'I can only help you with questions about this specific product.' "
-        "Keep your answers helpful, honest, and concise. Use the provided product data and reviews as your source of truth."
+        "You are Bodhi, a friendly and experienced shopper. "
+        "Your job is to chat with the user about the product they are looking at. "
+        "Talk like a real person, not an AI. Be direct, helpful, and concise. "
+        "CRITICAL: NEVER start your answer with 'Based on the provided context' or any similar robotic phrasing. "
+        "Just give the answer. If the answer is in the reviews, say 'Shoppers say...' or 'People mentioned...'. "
+        "If you don't find a specific detail in the reviews or specs, use your general knowledge to give a helpful best-guess (e.g., 'Usually, sneakers like this are fine for light jogging...'), but keep it grounded in the product type."
     )
 
-    product_context = (
-        f"Product Title: {product.title}\n"
-        f"Brand: {product.brand}\n"
-        f"Price: {product.price}\n"
-        f"Description/Features: {', '.join(product.features[:10])}\n"
-        f"Rating: {product.ratingValue} ({product.ratingCount})\n"
-    )
+    # Build a more comprehensive context
+    context_lines = [
+        f"Product Title: {product.title}",
+        f"Brand: {product.brand}",
+        f"Price: {product.price}",
+        f"Rating: {product.ratingValue} ({product.ratingCount})",
+    ]
+    
+    if product.features:
+        context_lines.append(f"Features: {', '.join(product.features[:8])}")
+    
+    if product.description:
+        context_lines.append(f"Product Description: {product.description[:500]}")
+        
+    if product.variations:
+        context_lines.append(f"Available Variations/Options: {', '.join(product.variations)}")
+    
+    if product.specs:
+        spec_text = ", ".join([f"{s.label}: {s.value}" for s in product.specs[:10]])
+        context_lines.append(f"Specifications: {spec_text}")
+        
+    if product.reviews:
+        context_lines.append("\nCUSTOMER REVIEWS:")
+        for i, rev in enumerate(product.reviews[:10], 1):
+            stars = f" ({rev.stars})" if rev.stars else ""
+            context_lines.append(f"{i}. {rev.title}{stars}: {rev.body[:400]}")
+            
+    if product.twisterData:
+        context_lines.append(f"\nTECHNICAL VARIATIONS (RAW): {product.twisterData[:500]}")
+
+    product_context = "\n".join(context_lines)
+    logger.info(f"CHAT SESSION: context size {len(product_context)} chars, {len(product.reviews)} reviews")
+    logger.info(f"CHAT CONTEXT PREVIEW: {product_context[:200]}...")
 
     messages = []
     # Add history

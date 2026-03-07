@@ -146,7 +146,8 @@
                     <button id="insights-refresh-btn" class="insights-refresh-btn" title="Refresh AI analysis">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+                            <path
+                                d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
                         </svg>
                         Refresh
                     </button>
@@ -238,8 +239,8 @@
                 <div class="card bento-reviews" id="card-reviews" style="display:none">
                     <div class="card-label">Customer Reviews</div>
                     <div class="review-toolbar">
-                        <input id="review-search" class="review-search-input" type="text"
-                            placeholder="Search reviews…" autocomplete="off" />
+                        <input id="review-search" class="review-search-input" type="text" placeholder="Search reviews…"
+                            autocomplete="off" />
                         <div class="review-sentiment-filters">
                             <button class="review-sentiment-btn active" data-sentiment="all">All</button>
                             <button class="review-sentiment-btn" data-sentiment="positive">Positive</button>
@@ -281,9 +282,8 @@
                 <!-- Recently Viewed -->
                 <div class="card profile-section-card">
                     <div class="card-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10" />
                             <polyline points="12 6 12 12 16 14" />
                         </svg>
@@ -297,10 +297,10 @@
                 <!-- Preferences -->
                 <div class="card profile-section-card">
                     <div class="card-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                         </svg>
                         Your Preferences
                     </div>
@@ -314,18 +314,18 @@
                 <!-- Actions -->
                 <div class="profile-actions">
                     <button id="profile-clear-history-btn" class="profile-action-btn" type="button">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                         </svg>
                         Clear History
                     </button>
                     <button id="profile-reset-btn" class="profile-action-btn profile-action-btn--danger" type="button">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
                         </svg>
                         Reset Preferences
                     </button>
@@ -355,10 +355,21 @@
             </button>
         </div>
         <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
-        <div id="chat-suggestions" class="chat-suggestions"></div>
+        <div id="chat-suggestions-container" class="chat-suggestions-container">
+            <button id="chat-suggestions-toggle" class="chat-suggestions-toggle" aria-expanded="true">
+                <span>Suggestions</span>
+                <svg class="chat-suggestions-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div id="chat-suggestions-wrap" class="chat-suggestions-wrap">
+                <div id="chat-suggestions" class="chat-suggestions"></div>
+            </div>
+        </div>
         <form id="chat-form" class="chat-form">
-            <input id="chat-input" class="chat-input" type="text" name="message"
-                placeholder="Ask about this product…" autocomplete="off" />
+            <input id="chat-input" class="chat-input" type="text" name="message" placeholder="Ask about this product…"
+                autocomplete="off" />
             <button id="chat-send-btn" class="chat-send-btn" type="submit" aria-label="Send">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -368,6 +379,14 @@
             </button>
         </form>
         <p id="chat-hint" class="chat-hint">Powered by AI — scoped to this product only.</p>
+    </div>
+
+    <div id="site-lock-overlay" class="site-lock-overlay" style="display:none">
+        <div class="site-lock-content">
+            <div id="site-lock-icon" class="site-lock-icon"></div>
+            <h2 id="site-lock-title" class="site-lock-title"></h2>
+            <p id="site-lock-message" class="site-lock-message"></p>
+        </div>
     </div>
 
     <script src="sidepanel/sidepanel.js"></script>

@@ -28,6 +28,7 @@ export interface AIInsightsResponse {
   newVersionAlert: string;
   specsExplained: SpecExplained[];
   chatSuggestions: string[];
+  optionsSummary: string;
   ttsScript: string;
   source: string;
 }
