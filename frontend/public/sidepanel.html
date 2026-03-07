@@ -262,15 +262,72 @@
         <!-- ══════════ TAB: Profile ══════════ -->
         <div id="tab-profile" class="tab-content" style="display:none">
             <section id="user-profile" class="user-profile">
-                <div class="card profile-card">
-                    <div class="card-label">Your Preferences</div>
+                <!-- Stats row -->
+                <div class="profile-stats" id="profile-stats">
+                    <div class="profile-stat-card">
+                        <span class="profile-stat-value" id="stat-products">0</span>
+                        <span class="profile-stat-label">Scanned</span>
+                    </div>
+                    <div class="profile-stat-card">
+                        <span class="profile-stat-value" id="stat-categories">0</span>
+                        <span class="profile-stat-label">Categories</span>
+                    </div>
+                    <div class="profile-stat-card">
+                        <span class="profile-stat-value" id="stat-avg-rating">—</span>
+                        <span class="profile-stat-label">Avg Rating</span>
+                    </div>
+                </div>
+
+                <!-- Recently Viewed -->
+                <div class="card profile-section-card">
+                    <div class="card-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Recently Viewed
+                    </div>
+                    <div id="profile-history" class="profile-history">
+                        <p class="profile-empty-msg">No products scanned yet.</p>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="card profile-section-card">
+                    <div class="card-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                        Your Preferences
+                    </div>
                     <div id="user-profile-body" class="profile-body">
-                        <p class="profile-empty">
-                            No preferences saved yet. Open Zen Mode and answer the quick quiz to personalize matches.
+                        <p class="profile-empty-msg">
+                            Open Zen Mode and take the quiz to build your shopper profile.
                         </p>
                     </div>
-                    <button id="profile-reset-btn" class="profile-reset-btn" type="button">
-                        Reset all preferences
+                </div>
+
+                <!-- Actions -->
+                <div class="profile-actions">
+                    <button id="profile-clear-history-btn" class="profile-action-btn" type="button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        Clear History
+                    </button>
+                    <button id="profile-reset-btn" class="profile-action-btn profile-action-btn--danger" type="button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                        </svg>
+                        Reset Preferences
                     </button>
                 </div>
             </section>

@@ -203,40 +203,97 @@ function getZenCSS(): string {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 24px;
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    grid-auto-rows: min-content;
-    gap: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 14px;
     align-content: start;
   }
   .bz-content::-webkit-scrollbar { width: 4px; }
   .bz-content::-webkit-scrollbar-track { background: transparent; }
   .bz-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 
-  /* ── Sections (Bento cells) ── */
+  /* ── Sections ── */
   .bz-section {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 18px;
-    padding: 20px;
+    border-radius: 16px;
+    padding: 18px;
     min-width: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.2s, border-color 0.2s;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    box-sizing: border-box;
   }
   .bz-section:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+    background: rgba(255, 255, 255, 0.045);
+    border-color: rgba(255, 255, 255, 0.09);
   }
-  /* Bento grid span classes */
-  .bz-col-6 { grid-column: span 6; }
-  .bz-col-4 { grid-column: span 4; }
-  .bz-col-3 { grid-column: span 3; }
-  .bz-col-2 { grid-column: span 2; }
-  .bz-row-2 { grid-row: span 2; }
+
+  /* Full-width items */
+  .bz-col-full { flex: 0 0 100%; }
+
+  /* Main + Sidebar wrapper */
+  .bz-row {
+    display: flex;
+    gap: 14px;
+    flex: 0 0 100%;
+    align-items: stretch;
+  }
+  .bz-col-main { flex: 1 1 0; min-width: 300px; }
+  .bz-sidebar {
+    flex: 0 0 230px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .bz-sidebar-card { flex: 1; }
+
+  /* Pros/Cons side-by-side inside main card */
+  .bz-pros-cons-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 12px;
+  }
+
+  /* Specs + Ratings combined row */
+  .bz-specs-ratings-row {
+    display: flex;
+    gap: 20px;
+    padding: 0;
+    background: none;
+    border: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .bz-specs-ratings-row:hover {
+    background: none;
+    border-color: transparent;
+  }
+  .bz-sr-panel {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 18px;
+  }
+  .bz-sr-panel:hover {
+    background: rgba(255, 255, 255, 0.045);
+    border-color: rgba(255, 255, 255, 0.09);
+  }
+  .bz-sr-panel--full { flex: 1 1 100%; }
+
+  /* TTS compact layout */
+  .bz-tts-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .bz-tts-row .bz-tts-speed { flex: 1; }
+  .bz-tts-row .bz-tts-lang-btn { flex: 1; margin-top: 0; text-align: center; }
   .bz-section-title {
     font-size: 0.75em;
     font-weight: 700;
@@ -317,7 +374,6 @@ function getZenCSS(): string {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 10px;
   }
   .bz-tts-toggle {
     width: 36px;
@@ -340,7 +396,8 @@ function getZenCSS(): string {
   .bz-tts-toggle.bz-playing { background: rgba(0,230,200,0.2); }
   .bz-tts-toggle.bz-playing .bz-icon-pause { display: block; }
   .bz-tts-toggle.bz-playing .bz-icon-play { display: none; }
-  .bz-tts-toggle:hover { background: rgba(0,230,200,0.22); transform: scale(1.05); }
+  .bz-tts-toggle[disabled] { cursor: not-allowed; }
+  .bz-tts-toggle:not([disabled]):hover { background: rgba(0,230,200,0.22); transform: scale(1.05); }
   .bz-tts-stop {
     width: 28px;
     height: 28px;
@@ -357,8 +414,9 @@ function getZenCSS(): string {
     padding: 0;
   }
   .bz-tts-stop svg { width: 12px; height: 12px; }
-  .bz-tts-stop:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
-  .bz-tts-stop:hover svg { stroke: #a0a0ab; }
+  .bz-tts-stop[disabled] { cursor: not-allowed; }
+  .bz-tts-stop:not([disabled]):hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
+  .bz-tts-stop:not([disabled]):hover svg { stroke: #a0a0ab; }
   .bz-tts-progress-inline {
     flex: 1;
     height: 4px;
@@ -366,7 +424,10 @@ function getZenCSS(): string {
     border-radius: 2px;
     overflow: hidden;
     position: relative;
+    margin: 0;
   }
+  .bz-tts-controls { margin-bottom: 0; }
+  .bz-tts-controls .bz-tts-progress-inline { margin-left: 8px; }
   .bz-tts-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #00e6c8, #00c4aa);
@@ -393,21 +454,118 @@ function getZenCSS(): string {
   }
   .bz-tts-speed:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
   .bz-tts-speed option { background: #1a1a24; color: #a0a0ab; }
-  .bz-tts-lang-btn {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 6px;
-    color: #a0a0ab;
-    font-size: 11px;
-    font-weight: 600;
+  .bz-tts-lang-switch {
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .bz-tts-lang-opt {
+    flex: 1;
     padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: none !important;
+    background: transparent;
+    color: #5c5c66;
     cursor: pointer;
     transition: all 0.2s;
+    text-align: center;
     white-space: nowrap;
-    margin-top: 6px;
   }
-  .bz-tts-lang-btn:hover { background: rgba(255,255,255,0.1); color: #f0f0f5; }
-  .bz-tts-lang-btn.active { background: rgba(0,230,200,0.15); border-color: rgba(0,230,200,0.3); color: #00e6c8; }
+  .bz-tts-lang-opt:hover { color: #a0a0ab; }
+  .bz-tts-lang-opt.bz-lang-active {
+    background: rgba(0,230,200,0.15);
+    color: #00e6c8;
+  }
+  /* Hidden legacy selector for JS compatibility */
+  .bz-tts-lang-btn { display: none; }
+
+  /* Time display */
+  .bz-tts-time {
+    font-size: 10px;
+    font-weight: 600;
+    color: #5c5c66;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Volume slider */
+  .bz-tts-volume-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .bz-tts-volume-row svg { flex-shrink: 0; }
+  .bz-tts-volume {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .bz-tts-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #00e6c8;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0,230,200,0.3);
+  }
+
+  /* Narration outline */
+  .bz-tts-outline {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .bz-tts-outline-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5c5c66;
+    margin-bottom: 8px;
+  }
+  .bz-tts-outline-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .bz-tts-outline-tag {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #8a8a93;
+    letter-spacing: 0.02em;
+  }
+  .bz-tag-pro {
+    background: rgba(52,199,89,0.08);
+    border-color: rgba(52,199,89,0.15);
+    color: #34c759;
+  }
+  .bz-tag-con {
+    background: rgba(255,69,58,0.08);
+    border-color: rgba(255,69,58,0.15);
+    color: #ff6b6b;
+  }
 
   /* ── Deal Score ── */
   .bz-deal-score {
@@ -508,7 +666,7 @@ function getZenCSS(): string {
   /* ── Quick Specs ── */
   .bz-specs-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 8px;
   }
   .bz-spec-item {
@@ -566,11 +724,11 @@ function getZenCSS(): string {
   .bz-seller-product-issue { background: rgba(245,166,35,0.12); color: #f5a623; }
   .bz-seller-both { background: rgba(255,69,58,0.12); color: #ff6b6b; }
   .bz-seller-no-issues { background: rgba(52,199,89,0.12); color: #34c759; }
-  .bz-seller-advice { font-size: 0.85em; color: #a0a0ab; line-height: 1.6; }
+  .bz-seller-advice { font-size: 0.8em; color: #a0a0ab; line-height: 1.5; }
 
   /* ── New Version Alert ── */
   .bz-alert-section { border-color: rgba(245,166,35,0.15) !important; }
-  .bz-alert-text { font-size: 12px; color: #f5a623; line-height: 1.5; }
+  .bz-alert-text { font-size: 0.85em; color: #f5a623; line-height: 1.5; }
 
   /* ── Preference Quiz ── */
   .bz-quiz-cards { display: flex; flex-direction: column; gap: 8px; }
@@ -845,14 +1003,20 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     return [...common, ...dynamicQuestions, ...(categoryQuestions[category] || categoryQuestions.general)];
   }
 
+  function answerVal(raw: string): string {
+    if (!raw) return "";
+    try { const p = JSON.parse(raw); return p.v || raw; } catch { return raw; }
+  }
+
   function computeMatchScores(d: any, ins: any, answers: Record<string, string>) {
     const scores: { label: string; score: number }[] = [];
+    const av = (key: string) => answerVal(answers[key]);
 
     const savingsMatch = (d.savings || "").match(/(\d+)/);
     const savingsPct = savingsMatch ? parseInt(savingsMatch[1]) : 0;
     let valueScore = 40;
-    if (answers.budget === "low") valueScore = savingsPct >= 30 ? 90 : savingsPct >= 15 ? 60 : 30;
-    else if (answers.budget === "mid") valueScore = savingsPct >= 15 ? 85 : 55;
+    if (av("budget") === "low") valueScore = savingsPct >= 30 ? 90 : savingsPct >= 15 ? 60 : 30;
+    else if (av("budget") === "mid") valueScore = savingsPct >= 15 ? 85 : 55;
     else valueScore = 75;
     if (d.coupon) valueScore = Math.min(100, valueScore + 10);
     scores.push({ label: "Value for Money", score: Math.min(100, valueScore) });
@@ -863,17 +1027,17 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     scores.push({ label: "Rating Quality", score: ratingScore });
 
     const brandScore = (() => {
-      if (answers.brand === "low") return 80;
+      if (av("brand") === "low") return 80;
       const seller = (d.seller || "").toLowerCase();
       const trusted = seller.includes("amazon") || seller.includes("cloudtail") || seller.includes("appario");
-      if (answers.brand === "high") return trusted ? 90 : 50;
+      if (av("brand") === "high") return trusted ? 90 : 50;
       return trusted ? 80 : 60;
     })();
     scores.push({ label: "Brand Trust", score: brandScore });
 
     const usageScore = (() => {
-      if (answers.usage === "daily") return rating >= 4 ? 85 : 55;
-      if (answers.usage === "weekly") return rating >= 3.5 ? 80 : 60;
+      if (av("usage") === "daily") return rating >= 4 ? 85 : 55;
+      if (av("usage") === "weekly") return rating >= 3.5 ? 80 : 60;
       return 75;
     })();
     scores.push({ label: "Usage Fit", score: usageScore });
@@ -976,8 +1140,8 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         </div>
       </div>
       <div class="bz-content">
-        <!-- Product Summary: full-width bento cell -->
-        <div class="bz-section bz-col-6 bz-product">
+        <!-- Product Summary: full-width -->
+        <div class="bz-section bz-col-full bz-product">
           ${data.mainImage ? `<img class="bz-product-img" src="${esc(data.mainImage)}" alt="Product" />` : ""}
           <div class="bz-product-info">
             <div class="bz-product-title">${esc(data.title || "Unknown Product")}</div>
@@ -993,8 +1157,9 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
           </div>
         </div>
 
-        <!-- AI Insights: large spanning cell -->
-        <div class="bz-section bz-col-4 bz-row-2">
+        <!-- Row 2: AI Verdict (left) + Sidebar (right) -->
+        <div class="bz-row">
+        <div class="bz-section bz-col-main">
           <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 6a4 4 0 0 1 3.25 1.93"/><circle cx="12" cy="14" r="4"/><path d="M12 18v4"/><path d="M8 22h8"/></svg> AI Verdict</div>
           <div class="bz-deal-score">
             <div class="bz-score-ring">
@@ -1012,7 +1177,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
               <div class="bz-score-verdict">${esc(insights.dealVerdict)}</div>
             </div>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 10px;">
+          <div class="bz-pros-cons-row">
             <div class="bz-pros">
               <div class="bz-pc-group-title bz-pro"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Pros</div>
               ${prosHtml}
@@ -1024,82 +1189,105 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
           </div>
         </div>
 
-        <!-- TTS Controls: smaller cell -->
-        <div class="bz-section bz-col-2">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback <span class="bz-tts-loading-label">Loading voice…</span></div>
-          <div class="bz-tts-controls">
-            <button class="bz-tts-toggle" title="Play / Pause">
-              <svg class="bz-icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
-              <svg class="bz-icon-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-            </button>
-            <button class="bz-tts-stop" title="Stop"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+        <!-- Sidebar: Playback + Seller stacked -->
+        <div class="bz-sidebar">
+          <div class="bz-section bz-sidebar-card">
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback <span class="bz-tts-loading-label">Loading voice…</span></div>
+            <div class="bz-tts-controls">
+              <button class="bz-tts-toggle" title="Play / Pause" disabled style="opacity:0.35;pointer-events:none">
+                <svg class="bz-icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
+                <svg class="bz-icon-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              </button>
+              <button class="bz-tts-stop" title="Stop" disabled style="opacity:0.35;pointer-events:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+              <div class="bz-tts-progress-inline"><div class="bz-tts-progress-fill"></div></div>
+              <span class="bz-tts-time">0:00</span>
+            </div>
+            <div class="bz-tts-row">
+              <select class="bz-tts-speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+              </select>
+              <div class="bz-tts-lang-switch">
+                <button class="bz-tts-lang-opt bz-lang-active" data-lang="en">EN</button>
+                <button class="bz-tts-lang-opt" data-lang="hi">HI</button>
+              </div>
+            </div>
+            <div class="bz-tts-volume-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5c66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+              <input class="bz-tts-volume" type="range" min="0" max="1" step="0.05" value="1" title="Volume" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5c66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </div>
+            <div class="bz-tts-outline">
+              <div class="bz-tts-outline-title">Narration covers</div>
+              <div class="bz-tts-outline-items">
+                ${data.title ? '<span class="bz-tts-outline-tag">Product</span>' : ''}
+                ${data.price ? '<span class="bz-tts-outline-tag">Price</span>' : ''}
+                ${data.savings ? '<span class="bz-tts-outline-tag">Savings</span>' : ''}
+                ${data.ratingValue ? '<span class="bz-tts-outline-tag">Rating</span>' : ''}
+                <span class="bz-tts-outline-tag">Deal Score</span>
+                ${insights.pros.length > 0 ? '<span class="bz-tts-outline-tag bz-tag-pro">Pros</span>' : ''}
+                ${insights.cons.length > 0 ? '<span class="bz-tts-outline-tag bz-tag-con">Cons</span>' : ''}
+                ${data.features?.length > 0 ? '<span class="bz-tts-outline-tag">Features</span>' : ''}
+              </div>
+            </div>
           </div>
-          <div class="bz-tts-progress-inline" style="margin: 12px 0;"><div class="bz-tts-progress-fill"></div></div>
-          <select class="bz-tts-speed" style="width: 100%;">
-            <option value="0.75">0.75×</option>
-            <option value="1" selected>1×</option>
-            <option value="1.25">1.25×</option>
-            <option value="1.5">1.5×</option>
-            <option value="2">2×</option>
-          </select>
-          <button class="bz-tts-lang-btn" data-lang="en" title="Switch to Hindi voice">
-            🇮🇳 हिंदी
-          </button>
+          ${insights.sellerVsProduct || insights.sellerAdvice ? `
+          <div class="bz-section bz-sidebar-card">
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller</div>
+            ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${insights.sellerVsProduct === "seller_issue" ? "Seller Warning" :
+          insights.sellerVsProduct === "product_issue" ? "Product Focus" :
+            insights.sellerVsProduct === "both" ? "Mixed Signal" : "Trusted Seller"
+          }</div>` : ""}
+            ${insights.sellerAdvice ? `<div class="bz-seller-advice">${esc(insights.sellerAdvice)}</div>` : ""}
+          </div>` : ""}
         </div>
+        </div><!-- /.bz-row -->
 
-        <!-- Seller Analysis: smaller cell -->
-        ${insights.sellerVsProduct || insights.sellerAdvice ? `
-        <div class="bz-section bz-col-2">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller</div>
-          ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${insights.sellerVsProduct === "seller_issue" ? "Seller Warning" :
-        insights.sellerVsProduct === "product_issue" ? "Product Focus" :
-          insights.sellerVsProduct === "both" ? "Mixed Signal" :
-            "Trusted Seller"
-        }</div>` : ""}
-          ${insights.sellerAdvice ? `<div class="bz-seller-advice" style="font-size: 0.75em;">${esc(insights.sellerAdvice)}</div>` : ""}
+        <!-- Specs + Ratings row: adaptive widths -->
+        ${insights.quickSpecs.length > 0 || (insights.starBreakdown && insights.starBreakdown.length > 0) ? `
+        <div class="bz-section bz-col-full bz-specs-ratings-row">
+          ${insights.quickSpecs.length > 0 ? `
+          <div class="bz-sr-panel ${insights.starBreakdown && insights.starBreakdown.length > 0 ? '' : 'bz-sr-panel--full'}">
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Specs</div>
+            <div class="bz-specs-grid">${specsHtml}</div>
+          </div>` : ""}
+          ${insights.starBreakdown && insights.starBreakdown.length > 0 ? `
+          <div class="bz-sr-panel ${insights.quickSpecs.length > 0 ? '' : 'bz-sr-panel--full'}">
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Ratings</div>
+            <div class="bz-star-breakdown">
+              ${[5, 4, 3, 2, 1].map(s => {
+            const sb = insights.starBreakdown.find((x: any) => x.star === s);
+            const pct = sb ? sb.pct : 0;
+            const barColor = s >= 4 ? "#34c759" : s === 3 ? "#f5a623" : "#ff453a";
+            return `<div class="bz-star-row">
+                  <span class="bz-star-label">${s}★</span>
+                  <div class="bz-star-bar"><div class="bz-star-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                  <span class="bz-star-pct">${pct}%</span>
+                </div>`;
+          }).join("")}
+            </div>
+          </div>` : ""}
         </div>` : ""}
 
-        <!-- Quick Specs: medium cell -->
-        ${insights.quickSpecs.length > 0 ? `
-        <div class="bz-section bz-col-3">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Specs</div>
-          <div class="bz-specs-grid" style="grid-template-columns: 1fr;">${specsHtml}</div>
-        </div>` : ""}
-
-        <!-- Star Breakdown: medium cell -->
-        ${insights.starBreakdown && insights.starBreakdown.length > 0 ? `
-        <div class="bz-section bz-col-3">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Ratings</div>
-          <div class="bz-star-breakdown">
-            ${[5, 4, 3, 2, 1].map(s => {
-          const sb = insights.starBreakdown.find((x: any) => x.star === s);
-          const pct = sb ? sb.pct : 0;
-          const barColor = s >= 4 ? "#34c759" : s === 3 ? "#f5a623" : "#ff453a";
-          return `<div class="bz-star-row">
-                <span class="bz-star-label">${s}★</span>
-                <div class="bz-star-bar"><div class="bz-star-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
-                <span class="bz-star-pct">${pct}%</span>
-              </div>`;
-        }).join("")}
-          </div>
-        </div>` : ""}
-
-        <!-- Preference Quiz: spanning wide -->
-        <div class="bz-section bz-col-6 bz-quiz-section">
-          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg> Shopping Assistant</div>
+        <!-- Product Fit: full-width -->
+        <div class="bz-section bz-col-full bz-quiz-section">
+          <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Is This Right for You?</div>
           <div class="bz-quiz-cards"></div>
           <div class="bz-quiz-result" style="display:none">
-            <div class="bz-quiz-score-title">Your Fit Analysis</div>
+            <div class="bz-quiz-score-title">Your Match Score</div>
             <div class="bz-quiz-graph"></div>
-            <button type="button" class="bz-quiz-reset">Retake Quiz</button>
+            <button type="button" class="bz-quiz-reset">Re-evaluate</button>
           </div>
         </div>
 
-        <!-- New Version Alert: footer style -->
+        <!-- New Version Alert -->
         ${insights.newVersionAlert ? `
-        <div class="bz-section bz-col-6 bz-alert-section" style="background: rgba(245,166,35,0.05);">
+        <div class="bz-section bz-col-full bz-alert-section" style="background: rgba(245,166,35,0.05);">
           <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Product Alert</div>
-          <div class="bz-alert-text" style="font-size: 0.9em;">${esc(insights.newVersionAlert)}</div>
+          <div class="bz-alert-text">${esc(insights.newVersionAlert)}</div>
         </div>` : ""}
       </div>
     </div>
@@ -1237,7 +1425,20 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
   const stopBtn = backdrop.querySelector(".bz-tts-stop") as HTMLElement;
   const speedSelect = backdrop.querySelector(".bz-tts-speed") as HTMLSelectElement;
   const progressFill = backdrop.querySelector(".bz-tts-progress-fill") as HTMLElement;
+  const timeDisplay = backdrop.querySelector(".bz-tts-time") as HTMLElement | null;
+  const volumeSlider = backdrop.querySelector(".bz-tts-volume") as HTMLInputElement | null;
   let isPlaying = false;
+
+  function formatTime(sec: number): string {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  function updateTimeDisplay(current: number, duration: number) {
+    if (timeDisplay) timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+  }
 
   function getPollyAudio(): HTMLAudioElement | null {
     return (window as any).__bodhiPollyAudio || null;
@@ -1274,8 +1475,10 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         const p = audio.play();
         if (p && typeof p.catch === "function") {
           p.catch(() => {
-            console.warn("[bodhi-leaf] Polly play failed, using browser TTS");
+            console.warn("[bodhi-leaf] Polly play failed, falling back to browser voice");
             toggleBtn.removeAttribute("data-polly");
+            const lbl = backdrop.querySelector(".bz-tts-loading-label");
+            if (lbl) lbl.textContent = "Using browser voice";
             startBrowserTTS();
           });
         }
@@ -1301,20 +1504,29 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     else if (window.speechSynthesis.speaking) { startBrowserTTS(); }
   });
 
-  // Hindi language toggle
-  const langBtn = backdrop.querySelector(".bz-tts-lang-btn") as HTMLElement | null;
+  // Volume control
+  volumeSlider?.addEventListener("input", () => {
+    const vol = parseFloat(volumeSlider.value);
+    if (hasPolly()) { const a = getPollyAudio()!; a.volume = vol; }
+  });
+
+  // Language toggle (EN / HI segmented control)
+  const langSwitch = backdrop.querySelector(".bz-tts-lang-switch") as HTMLElement | null;
+  const langEnBtn = backdrop.querySelector('.bz-tts-lang-opt[data-lang="en"]') as HTMLElement | null;
+  const langHiBtn = backdrop.querySelector('.bz-tts-lang-opt[data-lang="hi"]') as HTMLElement | null;
   let isHindiMode = false;
-  langBtn?.addEventListener("click", () => {
-    // Stop current playback
+
+  function switchLang(toHindi: boolean) {
     if (hasPolly()) { const a = getPollyAudio()!; a.pause(); a.currentTime = 0; }
     else { window.speechSynthesis.cancel(); }
     setPlaying(false);
     progressFill.style.width = "0%";
 
-    isHindiMode = !isHindiMode;
-    if (isHindiMode) {
-      langBtn.classList.add("active");
-      langBtn.textContent = "🇬🇧 English";
+    isHindiMode = toHindi;
+    langEnBtn?.classList.toggle("bz-lang-active", !toHindi);
+    langHiBtn?.classList.toggle("bz-lang-active", toHindi);
+
+    if (toHindi) {
       const cached = (window as any).__bodhiPollyAudioHindi;
       if (cached) {
         cached.currentTime = 0;
@@ -1323,12 +1535,27 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
       } else {
         const hindiUrl = (backdrop as any).__bodhiHindiAudioUrl;
         if (hindiUrl) {
+          const loadingLabel = backdrop.querySelector(".bz-tts-loading-label");
+          if (loadingLabel) loadingLabel.textContent = "Loading Hindi voice…";
+          toggleBtn.setAttribute("disabled", "");
+          toggleBtn.style.opacity = "0.35";
+          toggleBtn.style.pointerEvents = "none";
           const hindiAudio = new Audio();
           hindiAudio.addEventListener("canplaythrough", () => {
             (window as any).__bodhiPollyAudioHindi = hindiAudio;
             (window as any).__bodhiPollyAudio = hindiAudio;
             toggleBtn.setAttribute("data-polly", "true");
+            if (loadingLabel) loadingLabel.textContent = "Ready (Hindi)";
+            toggleBtn.removeAttribute("disabled");
+            toggleBtn.style.opacity = "1";
+            toggleBtn.style.pointerEvents = "auto";
           }, { once: true });
+          hindiAudio.addEventListener("error", () => {
+            if (loadingLabel) loadingLabel.textContent = "Using browser voice";
+            toggleBtn.removeAttribute("disabled");
+            toggleBtn.style.opacity = "1";
+            toggleBtn.style.pointerEvents = "auto";
+          });
           hindiAudio.addEventListener("play", () => setPlaying(true));
           hindiAudio.addEventListener("pause", () => setPlaying(false));
           hindiAudio.addEventListener("ended", () => { setPlaying(false); progressFill.style.width = "100%"; });
@@ -1340,15 +1567,16 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         }
       }
     } else {
-      langBtn.classList.remove("active");
-      langBtn.textContent = "🇮🇳 हिंदी";
       const originalAudio = (window as any).__bodhiPollyAudioEn;
       if (originalAudio) {
         (window as any).__bodhiPollyAudio = originalAudio;
         toggleBtn.setAttribute("data-polly", "true");
       }
     }
-  });
+  }
+
+  langEnBtn?.addEventListener("click", () => { if (isHindiMode) switchLang(false); });
+  langHiBtn?.addEventListener("click", () => { if (!isHindiMode) switchLang(true); });
 
   // ── Preference Quiz (flash-card MCQ) ──
   const quizContainer = backdrop.querySelector(".bz-quiz-cards") as HTMLElement;
@@ -1362,7 +1590,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     const STORAGE_KEY = "__bodhiPrefs";
 
     // Show loading state while AI questions are fetched
-    quizContainer.innerHTML = '<div class="bz-quiz-loading" style="font-size:11px;color:#5c5c66;padding:8px 0;">Generating personalized questions...</div>';
+    quizContainer.innerHTML = '<div class="bz-quiz-loading" style="font-size:11px;color:#5c5c66;padding:8px 0;">Personalizing for this product…</div>';
 
     // Listen for AI-generated questions
     backdrop.addEventListener("bodhi-quiz-ready", ((e: CustomEvent) => {
@@ -1433,14 +1661,17 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
       card.innerHTML = `
         <div class="bz-quiz-question">${q.question}</div>
         <div class="bz-quiz-options">
-          ${q.options.map((o: any) => `<button class="bz-quiz-opt" data-value="${o.value}">${o.label}</button>`).join("")}
+          ${q.options.map((o: any) => `<button class="bz-quiz-opt" data-value="${o.value}" data-label="${o.label.replace(/"/g, '&quot;')}">${o.label}</button>`).join("")}
         </div>
       `;
       quizContainer.innerHTML = "";
       quizContainer.appendChild(card);
       card.querySelectorAll(".bz-quiz-opt").forEach(btn => {
         btn.addEventListener("click", () => {
-          answers[q.id] = (btn as HTMLElement).getAttribute("data-value") || "";
+          const el = btn as HTMLElement;
+          const val = el.getAttribute("data-value") || "";
+          const label = el.getAttribute("data-label") || el.textContent || val;
+          answers[q.id] = JSON.stringify({ v: val, q: q.question, l: label });
           card.querySelectorAll(".bz-quiz-opt").forEach(b => b.classList.remove("bz-selected"));
           btn.classList.add("bz-selected");
           setTimeout(() => showQuestion(idx + 1), 300);
@@ -1502,22 +1733,52 @@ function injectPollyAudio(audioUrl: string) {
   if (!toggleBtn) return;
 
   const audio = new Audio();
+  audio.preload = "auto";
 
-  audio.addEventListener("canplaythrough", () => {
+  const stopBtn = backdrop.querySelector(".bz-tts-stop") as HTMLButtonElement | null;
+  let resolved = false;
+
+  function enableTtsButtons() {
+    toggleBtn.removeAttribute("disabled");
+    toggleBtn.style.opacity = "1";
+    toggleBtn.style.pointerEvents = "auto";
+    if (stopBtn) {
+      stopBtn.removeAttribute("disabled");
+      stopBtn.style.opacity = "1";
+      stopBtn.style.pointerEvents = "auto";
+    }
+  }
+
+  function markPollyReady() {
+    if (resolved) return;
+    resolved = true;
     (window as any).__bodhiPollyAudio = audio;
     (window as any).__bodhiPollyAudioEn = audio;
     toggleBtn.setAttribute("data-polly", "true");
     if (label) label.textContent = "Ready";
-  }, { once: true });
+    enableTtsButtons();
+  }
 
-  audio.addEventListener("error", () => {
+  function markFallback() {
+    if (resolved) return;
+    resolved = true;
     console.warn("[bodhi-leaf] Polly audio failed to load, browser TTS will be used");
-    if (label) label.textContent = "Ready (browser)";
-  });
+    if (label) label.textContent = "Using browser voice";
+    enableTtsButtons();
+  }
+
+  audio.addEventListener("canplaythrough", markPollyReady, { once: true });
+  audio.addEventListener("loadeddata", markPollyReady, { once: true });
+  audio.addEventListener("error", markFallback);
 
   audio.addEventListener("timeupdate", () => {
     if (audio.duration > 0 && progressFill) {
       progressFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+    }
+    const timeEl = backdrop.querySelector(".bz-tts-time") as HTMLElement | null;
+    if (timeEl && audio.duration > 0) {
+      const fmt = (s: number) => { const m = Math.floor(s / 60); return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`; };
+      timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
     }
   });
   audio.addEventListener("ended", () => {
@@ -1527,15 +1788,35 @@ function injectPollyAudio(audioUrl: string) {
   audio.addEventListener("play", () => toggleBtn.classList.add("bz-playing"));
   audio.addEventListener("pause", () => toggleBtn.classList.remove("bz-playing"));
 
+  const volSlider = backdrop.querySelector(".bz-tts-volume") as HTMLInputElement | null;
+  if (volSlider) audio.volume = parseFloat(volSlider.value);
+
   audio.src = audioUrl;
   audio.load();
+
+  setTimeout(() => {
+    if (!resolved && audio.readyState >= 2) markPollyReady();
+    else if (!resolved) markFallback();
+  }, 10_000);
 }
 
 function markTTSReady() {
   const backdrop = document.getElementById("bodhi-zen-backdrop");
   if (!backdrop) return;
   const label = backdrop.querySelector(".bz-tts-loading-label");
-  if (label) label.textContent = "Ready";
+  if (label) label.textContent = "Using browser voice";
+  const toggleBtn = backdrop.querySelector(".bz-tts-toggle") as HTMLElement;
+  const stopBtn = backdrop.querySelector(".bz-tts-stop") as HTMLElement;
+  if (toggleBtn) {
+    toggleBtn.removeAttribute("disabled");
+    toggleBtn.style.opacity = "1";
+    toggleBtn.style.pointerEvents = "auto";
+  }
+  if (stopBtn) {
+    stopBtn.removeAttribute("disabled");
+    stopBtn.style.opacity = "1";
+    stopBtn.style.pointerEvents = "auto";
+  }
 }
 
 function injectHindiAudio(audioUrl: string) {
