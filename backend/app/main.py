@@ -59,6 +59,7 @@ async def get_tts(request: TTSRequest):
             text=request.text,
             voice_id=request.voice_id,
             engine=request.engine,
+            language_code=request.language_code,
         )
         return result
     except Exception as e:

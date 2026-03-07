@@ -33,20 +33,21 @@ async def synthesize_speech(
     text: str,
     voice_id: str = "Kajal",
     engine: str = "generative",
+    language_code: str = "en-IN",
 ) -> TTSResponse:
     if len(text) > MAX_TEXT_LENGTH:
         text = text[:MAX_TEXT_LENGTH]
 
     client = _get_client()
 
-    logger.info(f"Calling Polly with voice={voice_id}, engine={engine}, text_len={len(text)}")
+    logger.info(f"Calling Polly with voice={voice_id}, engine={engine}, lang={language_code}, text_len={len(text)}")
 
     response = client.synthesize_speech(
         Text=text,
         OutputFormat="mp3",
         VoiceId=voice_id,
         Engine=engine,
-        LanguageCode="en-IN",
+        LanguageCode=language_code,
     )
 
     audio_stream = response["AudioStream"].read()

@@ -1,5 +1,5 @@
 import type { ZenInsights } from "./zen-insights";
-import { callBackendForTTS, callBackendForQuiz, callBackendForTranslation, isAIAvailable } from "../config/ai";
+import { callBackendForTTS, callBackendForQuiz, callBackendForTranslation, isAIAvailable, API_BASE_URL } from "../config/ai";
 
 function getZenCSS(): string {
   return `
@@ -417,23 +417,32 @@ function getZenCSS(): string {
   .bz-tts-stop[disabled] { cursor: not-allowed; }
   .bz-tts-stop:not([disabled]):hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
   .bz-tts-stop:not([disabled]):hover svg { stroke: #a0a0ab; }
+  .bz-tts-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
   .bz-tts-progress-inline {
     flex: 1;
-    height: 4px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 2px;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
     overflow: hidden;
     position: relative;
     margin: 0;
+    cursor: pointer;
+    transition: height 0.15s;
   }
+  .bz-tts-progress-inline:hover { height: 8px; }
   .bz-tts-controls { margin-bottom: 0; }
-  .bz-tts-controls .bz-tts-progress-inline { margin-left: 8px; }
   .bz-tts-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #00e6c8, #00c4aa);
-    border-radius: 2px;
+    border-radius: 3px;
     width: 0%;
-    transition: width 0.3s;
+    transition: width 0.15s linear;
+    pointer-events: none;
   }
   .bz-tts-speed {
     width: auto;
@@ -454,35 +463,25 @@ function getZenCSS(): string {
   }
   .bz-tts-speed:hover { background: rgba(255,255,255,0.1); color: #a0a0ab; }
   .bz-tts-speed option { background: #1a1a24; color: #a0a0ab; }
-  .bz-tts-lang-switch {
-    display: flex;
-    background: rgba(255,255,255,0.04);
+  .bz-tts-lang-select {
+    background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-  .bz-tts-lang-opt {
-    flex: 1;
-    padding: 4px 10px;
-    font-size: 10px;
-    font-weight: 700;
+    border-radius: 6px;
+    color: #a0a0ab;
     font-family: inherit;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    border: none !important;
-    background: transparent;
-    color: #5c5c66;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    outline: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+    flex-shrink: 0;
+    min-width: 64px;
     text-align: center;
-    white-space: nowrap;
   }
-  .bz-tts-lang-opt:hover { color: #a0a0ab; }
-  .bz-tts-lang-opt.bz-lang-active {
-    background: rgba(0,230,200,0.15);
-    color: #00e6c8;
-  }
+  .bz-tts-lang-select:hover { background: rgba(255,255,255,0.1); color: #00e6c8; }
+  .bz-tts-lang-select option { background: #1a1a24; color: #a0a0ab; }
   /* Hidden legacy selector for JS compatibility */
   .bz-tts-lang-btn { display: none; }
 
@@ -498,33 +497,27 @@ function getZenCSS(): string {
     text-align: right;
   }
 
-  /* Volume slider */
-  .bz-tts-volume-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .bz-tts-volume-row svg { flex-shrink: 0; }
+  /* Volume slider (inline compact) */
+  .bz-tts-controls .bz-vol-icon { flex-shrink: 0; margin-left: 6px; }
   .bz-tts-volume {
     -webkit-appearance: none;
     appearance: none;
-    flex: 1;
-    height: 3px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 2px;
+    width: 50px;
+    flex-shrink: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 1px;
     outline: none;
     cursor: pointer;
   }
   .bz-tts-volume::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #00e6c8;
     border: none;
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(0,230,200,0.3);
   }
 
   /* Narration outline */
@@ -835,7 +828,7 @@ function getZenCSS(): string {
   `;
 }
 
-function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl?: string) {
+function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl?: string, apiBaseUrl?: string) {
   // ── Quiz helpers (must be inside buildZenOverlay for MAIN world execution) ──
 
   function detectCategory(d: any): string {
@@ -1199,6 +1192,10 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
                 <svg class="bz-icon-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
               </button>
               <button class="bz-tts-stop" title="Stop" disabled style="opacity:0.35;pointer-events:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+              <svg class="bz-vol-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5c5c66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+              <input class="bz-tts-volume" type="range" min="0" max="1" step="0.05" value="1" title="Volume" />
+            </div>
+            <div class="bz-tts-progress-row">
               <div class="bz-tts-progress-inline"><div class="bz-tts-progress-fill"></div></div>
               <span class="bz-tts-time">0:00</span>
             </div>
@@ -1210,15 +1207,17 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
                 <option value="1.5">1.5×</option>
                 <option value="2">2×</option>
               </select>
-              <div class="bz-tts-lang-switch">
-                <button class="bz-tts-lang-opt bz-lang-active" data-lang="en">EN</button>
-                <button class="bz-tts-lang-opt" data-lang="hi">HI</button>
-              </div>
-            </div>
-            <div class="bz-tts-volume-row">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5c66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
-              <input class="bz-tts-volume" type="range" min="0" max="1" step="0.05" value="1" title="Volume" />
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5c66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+              <select class="bz-tts-lang-select">
+                <option value="en" selected>EN</option>
+                <option value="hi">हिन्दी</option>
+                <option value="ta">தமிழ்</option>
+                <option value="te">తెలుగు</option>
+                <option value="bn">বাংলা</option>
+                <option value="mr">मराठी</option>
+                <option value="gu">ગુજરાતી</option>
+                <option value="kn">ಕನ್ನಡ</option>
+                <option value="ml">മലയാളം</option>
+              </select>
             </div>
             <div class="bz-tts-outline">
               <div class="bz-tts-outline-title">Narration covers</div>
@@ -1234,12 +1233,11 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
               </div>
             </div>
           </div>
-          ${insights.sellerVsProduct || insights.sellerAdvice ? `
+          ${(insights.sellerVsProduct && insights.sellerVsProduct !== "no_issues" && insights.sellerVsProduct !== "product_issue") || insights.sellerAdvice ? `
           <div class="bz-section bz-sidebar-card">
-            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller</div>
-            ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${insights.sellerVsProduct === "seller_issue" ? "Seller Warning" :
-          insights.sellerVsProduct === "product_issue" ? "Product Focus" :
-            insights.sellerVsProduct === "both" ? "Mixed Signal" : "Trusted Seller"
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller Check</div>
+            ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${insights.sellerVsProduct === "seller_issue" ? "Seller Issues Found" :
+          insights.sellerVsProduct === "both" ? "Seller & Product Issues" : "Seller OK"
           }</div>` : ""}
             ${insights.sellerAdvice ? `<div class="bz-seller-advice">${esc(insights.sellerAdvice)}</div>` : ""}
           </div>` : ""}
@@ -1510,73 +1508,142 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
     if (hasPolly()) { const a = getPollyAudio()!; a.volume = vol; }
   });
 
-  // Language toggle (EN / HI segmented control)
-  const langSwitch = backdrop.querySelector(".bz-tts-lang-switch") as HTMLElement | null;
-  const langEnBtn = backdrop.querySelector('.bz-tts-lang-opt[data-lang="en"]') as HTMLElement | null;
-  const langHiBtn = backdrop.querySelector('.bz-tts-lang-opt[data-lang="hi"]') as HTMLElement | null;
-  let isHindiMode = false;
+  // Progress bar seek
+  const progressBar = backdrop.querySelector(".bz-tts-progress-inline") as HTMLElement | null;
+  progressBar?.addEventListener("click", (e: MouseEvent) => {
+    if (!hasPolly()) return;
+    const audio = getPollyAudio()!;
+    if (!audio.duration || !isFinite(audio.duration)) return;
+    const rect = progressBar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * audio.duration;
+    progressFill.style.width = `${pct * 100}%`;
+    updateTimeDisplay(audio.currentTime, audio.duration);
+  });
 
-  function switchLang(toHindi: boolean) {
+  // Language selector (all Indian languages via Polly)
+  const langSelect = backdrop.querySelector(".bz-tts-lang-select") as HTMLSelectElement | null;
+  const langCache: Record<string, HTMLAudioElement> = {};
+  let currentLang = "en";
+
+  const POLLY_LANG_MAP: Record<string, string> = {
+    en: "en-IN", hi: "hi-IN", mr: "hi-IN",
+    ta: "hi-IN", te: "hi-IN", bn: "hi-IN",
+    gu: "hi-IN", kn: "hi-IN", ml: "hi-IN",
+  };
+
+  function loadingLabel() { return backdrop.querySelector(".bz-tts-loading-label"); }
+
+  function disablePlayback(msg: string) {
+    const lbl = loadingLabel();
+    if (lbl) lbl.textContent = msg;
+    toggleBtn.setAttribute("disabled", "");
+    toggleBtn.style.opacity = "0.35";
+    toggleBtn.style.pointerEvents = "none";
+    if (stopBtn) { stopBtn.setAttribute("disabled", ""); stopBtn.style.opacity = "0.35"; stopBtn.style.pointerEvents = "none"; }
+  }
+
+  function enablePlayback(msg: string) {
+    const lbl = loadingLabel();
+    if (lbl) lbl.textContent = msg;
+    toggleBtn.removeAttribute("disabled");
+    toggleBtn.style.opacity = "1";
+    toggleBtn.style.pointerEvents = "auto";
+    if (stopBtn) { stopBtn.removeAttribute("disabled"); stopBtn.style.opacity = "1"; stopBtn.style.pointerEvents = "auto"; }
+  }
+
+  function wireAudioEvents(audio: HTMLAudioElement) {
+    audio.addEventListener("play", () => setPlaying(true));
+    audio.addEventListener("pause", () => setPlaying(false));
+    audio.addEventListener("ended", () => { setPlaying(false); progressFill.style.width = "100%"; });
+    audio.addEventListener("timeupdate", () => {
+      if (audio.duration > 0) {
+        progressFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+        updateTimeDisplay(audio.currentTime, audio.duration);
+      }
+    });
+  }
+
+  async function switchToLang(lang: string) {
     if (hasPolly()) { const a = getPollyAudio()!; a.pause(); a.currentTime = 0; }
     else { window.speechSynthesis.cancel(); }
     setPlaying(false);
     progressFill.style.width = "0%";
+    if (timeDisplay) timeDisplay.textContent = "0:00";
+    currentLang = lang;
 
-    isHindiMode = toHindi;
-    langEnBtn?.classList.toggle("bz-lang-active", !toHindi);
-    langHiBtn?.classList.toggle("bz-lang-active", toHindi);
+    if (lang === "en") {
+      const enAudio = (window as any).__bodhiPollyAudioEn;
+      if (enAudio) {
+        (window as any).__bodhiPollyAudio = enAudio;
+        toggleBtn.setAttribute("data-polly", "true");
+        enablePlayback("Ready");
+      }
+      return;
+    }
 
-    if (toHindi) {
-      const cached = (window as any).__bodhiPollyAudioHindi;
-      if (cached) {
-        cached.currentTime = 0;
-        (window as any).__bodhiPollyAudio = cached;
+    const cacheKey = `__bodhiPollyAudio_${lang}`;
+    const cached = (window as any)[cacheKey] as HTMLAudioElement | undefined;
+    if (cached) {
+      cached.currentTime = 0;
+      (window as any).__bodhiPollyAudio = cached;
+      toggleBtn.setAttribute("data-polly", "true");
+      const langName = langSelect?.selectedOptions?.[0]?.textContent || lang.toUpperCase();
+      enablePlayback(`Ready (${langName})`);
+      return;
+    }
+
+    if (!apiBaseUrl) return;
+
+    const langName = langSelect?.selectedOptions?.[0]?.textContent || lang.toUpperCase();
+    disablePlayback(`Translating to ${langName}…`);
+
+    try {
+      const trRes = await fetch(`${apiBaseUrl}/api/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ttsScript, target_lang: lang }),
+      });
+      if (!trRes.ok) throw new Error(`Translate ${trRes.status}`);
+      const trData = await trRes.json();
+
+      disablePlayback(`Generating ${langName} voice…`);
+
+      const pollyLang = POLLY_LANG_MAP[lang] || "hi-IN";
+      const ttsRes = await fetch(`${apiBaseUrl}/api/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trData.translated, voice_id: "Kajal", engine: "generative", language_code: pollyLang }),
+      });
+      if (!ttsRes.ok) throw new Error(`TTS ${ttsRes.status}`);
+      const ttsData = await ttsRes.json();
+
+      const audioUrl = `data:${ttsData.content_type};base64,${ttsData.audio_base64}`;
+      const audio = new Audio();
+      audio.preload = "auto";
+      wireAudioEvents(audio);
+
+      audio.addEventListener("canplaythrough", () => {
+        (window as any)[cacheKey] = audio;
+        (window as any).__bodhiPollyAudio = audio;
         toggleBtn.setAttribute("data-polly", "true");
-      } else {
-        const hindiUrl = (backdrop as any).__bodhiHindiAudioUrl;
-        if (hindiUrl) {
-          const loadingLabel = backdrop.querySelector(".bz-tts-loading-label");
-          if (loadingLabel) loadingLabel.textContent = "Loading Hindi voice…";
-          toggleBtn.setAttribute("disabled", "");
-          toggleBtn.style.opacity = "0.35";
-          toggleBtn.style.pointerEvents = "none";
-          const hindiAudio = new Audio();
-          hindiAudio.addEventListener("canplaythrough", () => {
-            (window as any).__bodhiPollyAudioHindi = hindiAudio;
-            (window as any).__bodhiPollyAudio = hindiAudio;
-            toggleBtn.setAttribute("data-polly", "true");
-            if (loadingLabel) loadingLabel.textContent = "Ready (Hindi)";
-            toggleBtn.removeAttribute("disabled");
-            toggleBtn.style.opacity = "1";
-            toggleBtn.style.pointerEvents = "auto";
-          }, { once: true });
-          hindiAudio.addEventListener("error", () => {
-            if (loadingLabel) loadingLabel.textContent = "Using browser voice";
-            toggleBtn.removeAttribute("disabled");
-            toggleBtn.style.opacity = "1";
-            toggleBtn.style.pointerEvents = "auto";
-          });
-          hindiAudio.addEventListener("play", () => setPlaying(true));
-          hindiAudio.addEventListener("pause", () => setPlaying(false));
-          hindiAudio.addEventListener("ended", () => { setPlaying(false); progressFill.style.width = "100%"; });
-          hindiAudio.addEventListener("timeupdate", () => {
-            if (hindiAudio.duration > 0) progressFill.style.width = `${(hindiAudio.currentTime / hindiAudio.duration) * 100}%`;
-          });
-          hindiAudio.src = hindiUrl;
-          hindiAudio.load();
-        }
-      }
-    } else {
-      const originalAudio = (window as any).__bodhiPollyAudioEn;
-      if (originalAudio) {
-        (window as any).__bodhiPollyAudio = originalAudio;
-        toggleBtn.setAttribute("data-polly", "true");
-      }
+        enablePlayback(`Ready (${langName})`);
+        if (volumeSlider) audio.volume = parseFloat(volumeSlider.value);
+      }, { once: true });
+
+      audio.addEventListener("error", () => {
+        enablePlayback("Voice unavailable");
+      });
+
+      audio.src = audioUrl;
+      audio.load();
+    } catch (err) {
+      console.warn("[bodhi-leaf] Language switch failed:", err);
+      enablePlayback("Voice unavailable");
     }
   }
 
-  langEnBtn?.addEventListener("click", () => { if (isHindiMode) switchLang(false); });
-  langHiBtn?.addEventListener("click", () => { if (!isHindiMode) switchLang(true); });
+  langSelect?.addEventListener("change", () => { switchToLang(langSelect.value); });
 
   // ── Preference Quiz (flash-card MCQ) ──
   const quizContainer = backdrop.querySelector(".bz-quiz-cards") as HTMLElement;
@@ -1822,9 +1889,14 @@ function markTTSReady() {
 function injectHindiAudio(audioUrl: string) {
   const backdrop = document.getElementById("bodhi-zen-backdrop");
   if (!backdrop) return;
-  (backdrop as any).__bodhiHindiAudioUrl = audioUrl;
-  const langBtn = backdrop.querySelector(".bz-tts-lang-btn");
-  if (langBtn) langBtn.classList.add("ready");
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.addEventListener("canplaythrough", () => {
+    (window as any).__bodhiPollyAudio_hi = audio;
+    (window as any).__bodhiPollyAudioHindi = audio;
+  }, { once: true });
+  audio.src = audioUrl;
+  audio.load();
 }
 
 function injectQuizQuestions(questions: any[]) {
@@ -1869,7 +1941,7 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
     target: { tabId },
     func: buildZenOverlay,
     world: "MAIN",
-    args: [safeData, safeInsights, iconUrl, null, null],
+    args: [safeData, safeInsights, iconUrl, null, API_BASE_URL || null],
   });
 
   // Fetch AI quiz questions async, inject when ready
@@ -1915,7 +1987,7 @@ export function showZenMode(tabId: number, data: any, insights: ZenInsights) {
   if (isAIAvailable() && insights.ttsScript) {
     callBackendForTranslation(insights.ttsScript, "hi")
       .then(async (tr) => {
-        const hindiTts = await callBackendForTTS(tr.translated, "Kajal", "generative");
+        const hindiTts = await callBackendForTTS(tr.translated, "Kajal", "generative", "hi-IN");
         const hindiUrl = `data:${hindiTts.content_type};base64,${hindiTts.audio_base64}`;
         (chrome.scripting.executeScript as any)({
           target: { tabId },
