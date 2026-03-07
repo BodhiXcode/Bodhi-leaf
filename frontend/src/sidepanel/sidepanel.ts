@@ -257,7 +257,7 @@ function bindReviewToggles() {
   });
 }
 
-type PrefStore = Record<string, Record<string, string>>;
+type PrefStore = Record<string, string | Record<string, string>>;
 
 interface PrefEntry {
   value: string;
@@ -271,13 +271,14 @@ function parsePrefEntry(raw: string): PrefEntry {
     if (p && p.v) return { value: p.v, question: p.q || "", label: p.l || p.v };
   } catch { /* old format — raw string value */ }
 
-  const hardcodedLabels: Record<string, Record<string, string>> = {
-    budget: { low: "Save Money", mid: "Balanced", high: "Premium Quality" },
-    usage: { daily: "Every Day", weekly: "Few Times/Week", occasional: "Occasionally" },
-    brand: { high: "Very Important", mid: "Somewhat", low: "Not Important" },
-    durability: { high: "Built to Last", mid: "Decent Quality", low: "Short-term" },
+  const friendlyLabels: Record<string, string> = {
+    low: "Low", mid: "Medium", high: "High",
+    daily: "Every Day", weekly: "Few Times/Week", occasional: "Occasionally",
+    work: "Work", gaming: "Gaming", creative: "Creative", general: "General",
+    yes: "Yes", no: "No",
   };
-  return { value: raw, question: "", label: raw };
+  const label = friendlyLabels[raw.toLowerCase()] || raw.charAt(0).toUpperCase() + raw.slice(1);
+  return { value: raw, question: "", label };
 }
 
 function humanLabel(key: string): string {
@@ -300,7 +301,11 @@ function humanLabel(key: string): string {
 function renderUserProfile(store: PrefStore) {
   if (!profileBody) return;
   const categories = Object.keys(store);
-  const hasData = categories.some(c => Object.keys(store[c] || {}).length > 0);
+  const hasData = categories.some(c => {
+    const val = store[c];
+    if (typeof val === "string") return val.length > 0;
+    return Object.keys(val || {}).length > 0;
+  });
 
   if (!hasData) {
     profileBody.innerHTML = `<p class="profile-empty-msg">
@@ -312,20 +317,37 @@ function renderUserProfile(store: PrefStore) {
   let html = "";
 
   for (const category of categories) {
-    const prefs = store[category] || {};
+    const catVal = store[category];
+    const catLabel = humanLabel(category);
+
+    if (typeof catVal === "string") {
+      const entry = parsePrefEntry(catVal);
+      html += `<div class="pref-group">
+        <div class="pref-group-title">${escapeHtml(catLabel)}</div>
+        <div class="pref-row">
+          <span class="pref-question">${escapeHtml(entry.question || catLabel)}</span>
+          <span class="pref-answer">${escapeHtml(entry.label)}</span>
+        </div>
+      </div>`;
+      continue;
+    }
+
+    const prefs = catVal || {};
     const prefKeys = Object.keys(prefs);
     if (prefKeys.length === 0) continue;
 
-    const catLabel = category.charAt(0).toUpperCase() + category.slice(1);
-
     const rows = prefKeys.map(key => {
-      const entry = parsePrefEntry(prefs[key]);
+      const rawVal = prefs[key];
+      if (typeof rawVal !== "string") return "";
+      const entry = parsePrefEntry(rawVal);
       const qLabel = entry.question || humanLabel(key);
       return `<div class="pref-row">
         <span class="pref-question">${escapeHtml(qLabel)}</span>
         <span class="pref-answer">${escapeHtml(entry.label)}</span>
       </div>`;
-    }).join("");
+    }).filter(Boolean).join("");
+
+    if (!rows) continue;
 
     html += `<div class="pref-group">
       <div class="pref-group-title">${escapeHtml(catLabel)}</div>

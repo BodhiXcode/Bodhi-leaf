@@ -1,6 +1,6 @@
 declare const process: { env: { API_BASE_URL: string } };
 
-const API_BASE_URL = process.env.API_BASE_URL;
+export const API_BASE_URL = process.env.API_BASE_URL;
 const INSIGHTS_TIMEOUT_MS = 30_000;
 const TTS_TIMEOUT_MS = 60_000;
 
@@ -28,6 +28,7 @@ export interface AIInsightsResponse {
   newVersionAlert: string;
   specsExplained: SpecExplained[];
   chatSuggestions: string[];
+  ttsScript: string;
   source: string;
 }
 
@@ -82,10 +83,11 @@ export async function callBackendForTTS(
   text: string,
   voiceId = "Kajal",
   engine = "generative",
+  languageCode = "en-IN",
 ): Promise<TTSResponse> {
   return apiFetch<TTSResponse>(
     "/api/tts",
-    { text, voice_id: voiceId, engine },
+    { text, voice_id: voiceId, engine, language_code: languageCode },
     TTS_TIMEOUT_MS,
   );
 }

@@ -246,18 +246,79 @@ function buildSummary(data: any): string {
   return parts.join(", ") + ".";
 }
 
+function humanizeTitle(raw: string): string {
+  let t = raw
+    .replace(/\|/g, ", ")
+    .replace(/\//g, " or ")
+    .replace(/\s*,\s*,+/g, ",")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const cutoff = t.indexOf(",", 60);
+  if (cutoff > 0 && cutoff < t.length - 5) {
+    t = t.substring(0, cutoff).trim();
+  }
+
+  t = t
+    .replace(/(\d+)\s*"/, "$1 inch")
+    .replace(/(\d+)\s*cm\b/gi, "$1 centimetre")
+    .replace(/\bcd\/m2\b/gi, "candela per square metre")
+    .replace(/\bms\b/g, "milliseconds")
+    .replace(/\bHz\b/gi, "hertz")
+    .replace(/\bsRGB\b/gi, "s-RGB")
+    .replace(/\bHDMI\b/g, "H-D-M-I")
+    .replace(/\bUSB[-\s]?C\b/gi, "USB C")
+    .replace(/\bAMD\b/g, "A-M-D")
+    .replace(/\bRTX\b/g, "R-T-X")
+    .replace(/\bGTX\b/g, "G-T-X")
+    .replace(/\bDDR\d?\b/g, (m) => m.split("").join("-"))
+    .replace(/\bSSD\b/g, "S-S-D")
+    .replace(/\bHDD\b/g, "H-D-D")
+    .replace(/\bLED\b/g, "L-E-D")
+    .replace(/\bOLED\b/g, "O-L-E-D")
+    .replace(/\bIPS\b/g, "I-P-S")
+    .replace(/\bRAM\b/g, "ram")
+    .replace(/\bGHz\b/gi, "gigahertz")
+    .replace(/\bGB\b/g, "G-B")
+    .replace(/\bTB\b/g, "terabyte")
+    .replace(/\bMP\b/g, "megapixel")
+    .replace(/\bmAh\b/gi, "milliamp-hour")
+    .replace(/(\d+)\s*W\b/g, "$1 watt");
+
+  return t;
+}
+
 function buildTTSScript(data: any, insights: Omit<ZenInsights, "ttsScript">): string {
   const parts: string[] = [];
-  parts.push(`Product: ${data.title || "Unknown product"}.`);
+
+  const name = humanizeTitle(data.title || "this product");
+  parts.push(`Let me tell you about ${name}.`);
+
   if (data.price) {
-    parts.push(`Price: ${data.price.replace(/\.\s*$/, "")} rupees.`);
-    if (data.savings) parts.push(`You save ${data.savings}.`);
+    const p = data.price.replace(/\.\s*$/, "").replace(/,/g, "");
+    parts.push(`It's priced at ${p} rupees.`);
+    if (data.savings) parts.push(`And you'd save ${data.savings} on this purchase.`);
   }
-  if (data.ratingValue) parts.push(`Rating: ${data.ratingValue}, from ${data.ratingCount || "unknown number of reviews"}.`);
-  parts.push(`Deal score: ${insights.dealScore} out of 10. ${insights.dealVerdict}.`);
-  if (insights.pros.length > 0) parts.push(`Top pros: ${insights.pros.slice(0, 3).join(". ")}.`);
-  if (insights.cons.length > 0) parts.push(`Things to consider: ${insights.cons.slice(0, 3).join(". ")}.`);
-  if (data.features?.length) parts.push(`Key features include: ${data.features.slice(0, 4).join(", ")}.`);
+
+  if (data.ratingValue) {
+    const count = data.ratingCount || "several reviews";
+    parts.push(`Buyers have given it ${data.ratingValue} out of 5 stars, based on ${count}.`);
+  }
+
+  parts.push(`Overall, I'd give this deal a ${insights.dealScore} out of 10. ${insights.dealVerdict}.`);
+
+  if (insights.pros.length > 0) {
+    parts.push(`On the bright side: ${insights.pros.slice(0, 3).join(". Also, ")}.`);
+  }
+  if (insights.cons.length > 0) {
+    parts.push(`A few things to keep in mind though: ${insights.cons.slice(0, 3).join(". And, ")}.`);
+  }
+
+  if (data.features?.length) {
+    const feats = data.features.slice(0, 3).map((f: string) => humanizeTitle(f));
+    parts.push(`Some standout features are: ${feats.join(", ")}.`);
+  }
+
   return parts.join(" ");
 }
 
@@ -317,7 +378,7 @@ export async function generateInsights(data: any): Promise<ZenInsights> {
         ttsScript: "",
         source: (aiResult.source || "bedrock") as "bedrock" | "local",
       };
-      partial.ttsScript = buildTTSScript(data, partial);
+      partial.ttsScript = aiResult.ttsScript || buildTTSScript(data, partial);
       return partial;
     } catch (err) {
       console.warn("[bodhi-leaf] Backend AI failed, falling back to local analysis:", err);

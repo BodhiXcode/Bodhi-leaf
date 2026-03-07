@@ -49,9 +49,10 @@ JSON_INSTRUCTIONS = (
     'pct is the percentage from the histogram. topIssue is a one-line summary of what '
     'people at that star level commonly say (e.g. "Battery dies within a month"). '
     'If no data, use empty string for topIssue.\n'
-    '- "sellerVsProduct": one of "seller_issue", "product_issue", "both", or "no_issues". '
-    'Analyze if negative reviews complain about the seller (packaging, delivery, wrong item) '
-    'vs the product itself (quality, defects, features).\n'
+    '- "sellerVsProduct": one of "seller_issue", "both", or "no_issues". '
+    'ONLY use "seller_issue" if negative reviews explicitly complain about the seller '
+    '(packaging, delivery, wrong item sent, counterfeit). Use "both" if complaints target '
+    'both seller and product. Default to "no_issues" if complaints are purely about product quality/features.\n'
     '- "sellerAdvice": if sellerVsProduct is "seller_issue" or "both", suggest checking other '
     'sellers on this listing. Otherwise empty string.\n'
     '- "newVersionAlert": if the product name or reviews hint at a newer model/version '
@@ -64,7 +65,14 @@ JSON_INSTRUCTIONS = (
     '- "chatSuggestions": array of exactly 3 short questions (max 8 words each) a buyer might ask '
     'about THIS specific product. Make them relevant and useful '
     '(e.g. "Is this good for music production?", "How long does the battery last?"). '
-    'Tailor them to the product category.'
+    'Tailor them to the product category.\n'
+    '- "ttsScript": a 100-150 word narration script meant to be read aloud by a text-to-speech engine. '
+    'Write it as a friendly, conversational product briefing — like a knowledgeable friend explaining '
+    'the product over a phone call. Cover: what it is, price and any savings, rating highlights, '
+    'deal verdict, top pros and cons. IMPORTANT: Do NOT use raw abbreviations, pipe characters, '
+    'slashes, or spec-heavy jargon. Spell out acronyms naturally (e.g. say "H-D-M-I" not "HDMI", '
+    '"27 inch" not "27\\"", "I-P-S display" not "IPS"). Use natural pauses with commas and periods. '
+    'Do NOT use bullet points, numbered lists, or any special characters. Just flowing sentences.'
 )
 
 
@@ -198,6 +206,7 @@ async def analyze_product(product: ProductData) -> InsightsResponse:
         newVersionAlert=parsed.get("newVersionAlert", ""),
         specsExplained=specs_explained[:5],
         chatSuggestions=parsed.get("chatSuggestions", [])[:3],
+        ttsScript=parsed.get("ttsScript", ""),
         source="bedrock",
     )
 
@@ -325,20 +334,37 @@ LANG_NAMES = {
     "ml": "Malayalam",
 }
 
+DEVANAGARI_LANGS = {"hi", "mr"}
+
 
 async def translate_text(text: str, target_lang: str = "hi") -> str:
     client = _get_client()
     lang_name = LANG_NAMES.get(target_lang, "Hindi")
 
-    prompt = (
-        f"Translate the following product summary into {lang_name}. "
-        "Keep it natural and conversational. Output ONLY the translation, nothing else.\n\n"
-        f"{text}"
-    )
+    if target_lang in DEVANAGARI_LANGS:
+        prompt = (
+            f"Translate the following product summary into {lang_name}. "
+            "Keep it natural and conversational. Output ONLY the translation, nothing else.\n\n"
+            f"{text}"
+        )
+        system_text = f"You are a translator. Translate text to {lang_name}. Output ONLY the translation."
+    else:
+        prompt = (
+            f"Translate the following product summary into {lang_name}, but write the output "
+            "in DEVANAGARI script (transliteration). This is for a Hindi text-to-speech engine, "
+            "so the output must be phonetically accurate in Devanagari so it sounds like natural "
+            f"{lang_name} when read aloud. Keep it conversational. Output ONLY the Devanagari transliteration.\n\n"
+            f"{text}"
+        )
+        system_text = (
+            f"You are a translator and transliterator. Translate text to {lang_name} "
+            "but write the result in Devanagari script (phonetic transliteration). "
+            "Output ONLY the Devanagari text."
+        )
 
     request_body = json.dumps({
         "schemaVersion": "messages-v1",
-        "system": [{"text": f"You are a translator. Translate text to {lang_name}. Output ONLY the translation."}],
+        "system": [{"text": system_text}],
         "messages": [{"role": "user", "content": [{"text": prompt}]}],
         "inferenceConfig": {"maxTokens": 1500, "temperature": 0.3},
     })

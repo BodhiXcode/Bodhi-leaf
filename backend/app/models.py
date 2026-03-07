@@ -69,6 +69,7 @@ class InsightsResponse(BaseModel):
     newVersionAlert: str = ""
     specsExplained: list[SpecExplained] = Field(default_factory=list)
     chatSuggestions: list[str] = Field(default_factory=list)
+    ttsScript: str = ""
     source: str = "bedrock"
 
 
@@ -76,6 +77,7 @@ class TTSRequest(BaseModel):
     text: str = Field(..., max_length=3000)
     voice_id: str = "Kajal"
     engine: str = "generative"
+    language_code: str = "en-IN"
 
 
 class TTSResponse(BaseModel):
