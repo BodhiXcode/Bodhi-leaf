@@ -13,16 +13,18 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 MAX_TEXT_LENGTH = 3000
 
 
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+_ON_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 
 
 @lru_cache(maxsize=1)
 def _get_client():
     kwargs: dict = {"region_name": AWS_REGION}
-    if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-        kwargs["aws_access_key_id"] = AWS_ACCESS_KEY_ID
-        kwargs["aws_secret_access_key"] = AWS_SECRET_ACCESS_KEY
+    if not _ON_LAMBDA:
+        key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+        secret = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+        if key and secret:
+            kwargs["aws_access_key_id"] = key
+            kwargs["aws_secret_access_key"] = secret
     session = boto3.Session(**kwargs)
     return session.client("polly")
 
