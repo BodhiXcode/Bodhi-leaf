@@ -326,7 +326,7 @@ curl http://localhost:8000/api/health
 
 ## License
 
-UNLICENSED
+Proprietary — All Rights Reserved. See [LICENSE.md](LICENSE.md).
 
 ## Authors
 

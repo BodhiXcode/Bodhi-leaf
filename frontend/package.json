@@ -10,7 +10,8 @@
   },
   "private": "true",
   "author": "Smil Thakur, Agnibha Sarkar",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "private": true,
   "devDependencies": {
     "chrome-types": "^0.1.420",
     "esbuild": "^0.27.3",
