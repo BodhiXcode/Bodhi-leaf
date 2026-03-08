@@ -43,6 +43,9 @@ class ProductData(BaseModel):
     reviews: list[ReviewData] = Field(default_factory=list)
     specs: list[SpecRow] = Field(default_factory=list)
     seller: str = ""
+    description: str = ""
+    variations: list[str] = Field(default_factory=list)
+    twisterData: str = ""
 
 
 class StarBreakdown(BaseModel):
@@ -69,6 +72,7 @@ class InsightsResponse(BaseModel):
     newVersionAlert: str = ""
     specsExplained: list[SpecExplained] = Field(default_factory=list)
     chatSuggestions: list[str] = Field(default_factory=list)
+    optionsSummary: str = ""
     ttsScript: str = ""
     source: str = "bedrock"
 

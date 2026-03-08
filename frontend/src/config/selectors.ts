@@ -29,20 +29,20 @@ export const SELECTORS = {
         aplusContent: "#aplus_feature_div",
 
         // ── Ratings & reviews ──
-        ratingValue: "#acrPopover span.a-icon-alt",                     // e.g. "4.2 out of 5 stars"
-        ratingCount: "#acrCustomerReviewText",                          // e.g. "1,234 ratings"
+        ratingValue: "#acrPopover span.a-icon-alt",
+        ratingCount: "#acrCustomerReviewText",
         ratingMetadata: "#cm_cr_dp_d_rating_histogram",
         ratingFilterBtns: "#histogramTable tr",
-        reviewDivs: "div[data-hook='review']",
-        reviewTitle: "a[data-hook='review-title'] span:not(.a-letter-space)",
-        reviewBody: "span[data-hook='review-body'] span",
-        reviewerName: "span.a-profile-name",
-        reviewStars: "i[data-hook='review-star-rating'] span.a-icon-alt",
-        reviewDate: "span[data-hook='review-date']",
-        reviewHelpful: "span[data-hook='helpful-vote-statement']",
+        reviewDivs: "div[data-hook='review'], .review, .cm-cr-review-list .a-section, [id^='customer_review-']",
+        reviewTitle: "a[data-hook='review-title'] span, .review-title span, [data-hook='review-title']",
+        reviewBody: "span[data-hook='review-body'] span, .review-text span, [data-hook='review-body']",
+        reviewerName: "span.a-profile-name, .review-author",
+        reviewStars: "i[data-hook='review-star-rating'] span.a-icon-alt, .review-rating span.a-icon-alt, [data-hook='review-star-rating']",
+        reviewDate: "span[data-hook='review-date'], .review-date",
+        reviewHelpful: "span[data-hook='helpful-vote-statement'], .review-votes",
 
         // ── Technical / product details table ──
-        technicalDetails: "#productDetails_techSpec_section_1 tr, #prodDetails table.prodDetTable tr",
+        technicalDetails: "#productDetails_techSpec_section_1 tr, #prodDetails table.prodDetTable tr, .prodDetTable tr, #technicalSpecifications_feature_div tr, #detailBullets_feature_div tr, #productDetails_db_sections tr",
         additionalInfo: "#productDetails_detailBullets_sections1 tr",
         detailBullets: "#detailBulletsWrapper_feature_div li span.a-list-item",
 
@@ -55,6 +55,7 @@ export const SELECTORS = {
         // ── Variations (size, color, etc.) ──
         variationLabels: "#variation_size_name span.selection, #variation_color_name span.selection",
         variationOptions: "ul.swatchesSquare li, ul.dropdown-prompt li",
+        twisterOptions: "#twister_feature_div",
 
         // ── "Frequently bought together" & "Customers also bought" ──
         frequentlyBoughtTogether: "#sims-fbt .a-fixed-left-grid",

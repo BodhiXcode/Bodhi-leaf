@@ -313,7 +313,20 @@ function getZenCSS(): string {
     color: #666;
     margin-left: auto;
     text-transform: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
+  .bz-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(52, 199, 89, 0.15);
+    border-top-color: #34c759;
+    border-radius: 50%;
+    animation: bz-spin 0.6s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+    display: inline-block;
+  }
+  @keyframes bz-spin { to { transform: rotate(360deg); } }
 
   /* ── Product Summary ── */
   .bz-product {
@@ -774,19 +787,40 @@ function getZenCSS(): string {
   .bz-graph-label { color: #a0a0ab; font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bz-graph-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
   .bz-graph-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease-out; }
-  .bz-graph-pct { color: #f0f0f5; font-weight: 700; font-size: 12px; }
+  .bz-graph-pct { width: 32px; text-align: right; font-weight: 700; font-size: 11px; }
   .bz-match-overall {
-    margin-top: 10px;
-    padding: 10px 14px;
-    background: rgba(255,255,255,0.03);
-    border-radius: 10px;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    border: 1px solid rgba(255,255,255,0.05);
+    align-items: center;
   }
-  .bz-match-label { font-size: 12px; font-weight: 600; color: #a0a0ab; }
-  .bz-match-value { font-size: 20px; font-weight: 800; }
+  .bz-match-label { font-size: 12px; font-weight: 600; color: #8a8a93; }
+  .bz-match-value { font-size: 18px; font-weight: 800; }
+
+  /* ── Variations ── */
+  .bz-options-summary {
+    margin-top: 12px;
+    padding: 12px;
+    background: #1a1a1c;
+    border-radius: 8px;
+    border: 1px solid #333;
+    border-left: 3px solid #00e6c8;
+  }
+  .bz-options-summary-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #8a8a93;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .bz-options-summary-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #d1d1d6;
+  }
 
   .bz-quiz-reset, .bz-quiz-retake {
     margin-top: 16px;
@@ -821,10 +855,6 @@ function getZenCSS(): string {
     background-size: contain;
   }
 
-  /* ── Minimized state ── */
-  #bodhi-zen-panel.bz-minimized .bz-content { display: none; }
-  #bodhi-zen-panel.bz-minimized .bz-a11y-bar { display: none !important; }
-  #bodhi-zen-panel.bz-minimized { height: auto; }
   `;
 }
 
@@ -1103,7 +1133,6 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         </div>
         <div class="bz-header-actions">
           <button class="bz-btn-a11y" title="Accessibility" aria-label="Accessibility settings" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="1"/><path d="M9 20l3-8 3 8"/><path d="M6 8l6 2 6-2"/></svg></button>
-          <button class="bz-btn-minimize" title="Minimize"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           <button class="bz-btn-close" title="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
@@ -1170,6 +1199,12 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
               <div class="bz-score-verdict">${esc(insights.dealVerdict)}</div>
             </div>
           </div>
+          ${insights.optionsSummary ? `
+            <div class="bz-options-summary">
+              <div class="bz-options-summary-title">Variation Insights</div>
+              <div class="bz-options-summary-text">${esc(insights.optionsSummary)}</div>
+            </div>
+          ` : ""}
           <div class="bz-pros-cons-row">
             <div class="bz-pros">
               <div class="bz-pc-group-title bz-pro"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Pros</div>
@@ -1185,7 +1220,7 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
         <!-- Sidebar: Playback + Seller stacked -->
         <div class="bz-sidebar">
           <div class="bz-section bz-sidebar-card">
-            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback <span class="bz-tts-loading-label">Loading voice…</span></div>
+            <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg> Playback <span class="bz-tts-loading-label"><span class="bz-spinner"></span></span></div>
             <div class="bz-tts-controls">
               <button class="bz-tts-toggle" title="Play / Pause" disabled style="opacity:0.35;pointer-events:none">
                 <svg class="bz-icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
@@ -1237,8 +1272,8 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
           <div class="bz-section bz-sidebar-card">
             <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Seller Check</div>
             ${insights.sellerVsProduct ? `<div class="bz-seller-badge bz-seller-${insights.sellerVsProduct.replace(/_/g, "-")}">${insights.sellerVsProduct === "seller_issue" ? "Seller Issues Found" :
-          insights.sellerVsProduct === "both" ? "Seller & Product Issues" : "Seller OK"
-          }</div>` : ""}
+        insights.sellerVsProduct === "both" ? "Seller & Product Issues" : "Seller OK"
+        }</div>` : ""}
             ${insights.sellerAdvice ? `<div class="bz-seller-advice">${esc(insights.sellerAdvice)}</div>` : ""}
           </div>` : ""}
         </div>
@@ -1257,15 +1292,15 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
             <div class="bz-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Ratings</div>
             <div class="bz-star-breakdown">
               ${[5, 4, 3, 2, 1].map(s => {
-            const sb = insights.starBreakdown.find((x: any) => x.star === s);
-            const pct = sb ? sb.pct : 0;
-            const barColor = s >= 4 ? "#34c759" : s === 3 ? "#f5a623" : "#ff453a";
-            return `<div class="bz-star-row">
+          const sb = insights.starBreakdown.find((x: any) => x.star === s);
+          const pct = sb ? sb.pct : 0;
+          const barColor = s >= 4 ? "#34c759" : s === 3 ? "#f5a623" : "#ff453a";
+          return `<div class="bz-star-row">
                   <span class="bz-star-label">${s}★</span>
                   <div class="bz-star-bar"><div class="bz-star-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
                   <span class="bz-star-pct">${pct}%</span>
                 </div>`;
-          }).join("")}
+        }).join("")}
             </div>
           </div>` : ""}
         </div>` : ""}
@@ -1296,18 +1331,10 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
   // ── Event handlers ──
   const panel = document.getElementById("bodhi-zen-panel")!;
   const closeBtn = backdrop.querySelector(".bz-btn-close")!;
-  const minimizeBtn = backdrop.querySelector(".bz-btn-minimize")!;
 
   closeBtn.addEventListener("click", () => {
     backdrop.classList.add("bz-closing");
     setTimeout(() => backdrop.remove(), 250);
-  });
-
-  const minSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-  const maxSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
-  minimizeBtn.addEventListener("click", () => {
-    panel.classList.toggle("bz-minimized");
-    (minimizeBtn as HTMLElement).innerHTML = panel.classList.contains("bz-minimized") ? maxSvg : minSvg;
   });
 
   backdrop.addEventListener("click", (e) => {
@@ -1536,7 +1563,14 @@ function buildZenOverlay(data: any, insights: any, iconUrl?: string, ttsAudioUrl
 
   function disablePlayback(msg: string) {
     const lbl = loadingLabel();
-    if (lbl) lbl.textContent = msg;
+    if (lbl) {
+      const m = msg.toLowerCase();
+      if (m.includes("loading") || m.includes("translating") || m.includes("generating")) {
+        lbl.innerHTML = '<span class="bz-spinner"></span>';
+      } else {
+        lbl.textContent = msg;
+      }
+    }
     toggleBtn.setAttribute("disabled", "");
     toggleBtn.style.opacity = "0.35";
     toggleBtn.style.pointerEvents = "none";

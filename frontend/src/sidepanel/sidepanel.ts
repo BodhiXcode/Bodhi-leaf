@@ -2,7 +2,7 @@ import { SELECTORS } from "../config/selectors";
 import { showPortalAnimation, hidePortalAnimation } from "./portal-animation";
 import { showZenMode, hideZenMode } from "../zen/zen-mode";
 import { generateInsights } from "../zen/zen-insights";
-import { callBackendForChat, isAIAvailable, type ChatMessage } from "../config/ai";
+import { callBackendForChat, isAIAvailable, API_BASE_URL, type ChatMessage } from "../config/ai";
 
 // ── DOM refs ──
 const loadBtn = document.getElementById("lbtn");
@@ -33,6 +33,8 @@ const chatForm = document.getElementById("chat-form") as HTMLFormElement | null;
 const chatInput = document.getElementById("chat-input") as HTMLInputElement | null;
 const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
 const chatHint = document.getElementById("chat-hint");
+const chatSuggestionsContainer = document.getElementById("chat-suggestions-container");
+const chatSuggestionsToggle = document.getElementById("chat-suggestions-toggle") as HTMLButtonElement | null;
 const chatSuggestions = document.getElementById("chat-suggestions");
 const reviewSearch = document.getElementById("review-search") as HTMLInputElement | null;
 const profileSection = document.getElementById("user-profile");
@@ -209,12 +211,19 @@ function renderChatSuggestions(suggestions: string[]) {
   chatSuggestions.innerHTML = suggestions
     .map(s => `<button class="chat-suggestion-chip">${escapeHtml(s)}</button>`)
     .join("");
+
+  if (chatSuggestionsToggle) {
+    chatSuggestionsToggle.setAttribute("aria-expanded", "true");
+  }
+
   chatSuggestions.querySelectorAll(".chat-suggestion-chip").forEach(btn => {
     btn.addEventListener("click", () => {
       const text = (btn as HTMLElement).textContent || "";
-      if (chatInput) chatInput.value = text;
+      if (chatInput) chatInput.value = "";
       handleChatSubmit(text);
-      if (chatSuggestions) chatSuggestions.innerHTML = "";
+      if (chatSuggestionsToggle) {
+        chatSuggestionsToggle.setAttribute("aria-expanded", "false");
+      }
     });
   });
 }
@@ -469,12 +478,43 @@ function hideStatus() {
 }
 
 // ── Data extraction ──
+function showSiteLock(title: string, message: string, type: 'dev' | 'noshop' | 'noproduct') {
+  const overlay = document.getElementById("site-lock-overlay");
+  const titleEl = document.getElementById("site-lock-title");
+  const messageEl = document.getElementById("site-lock-message");
+  const iconEl = document.getElementById("site-lock-icon");
+
+  if (!overlay || !titleEl || !messageEl || !iconEl) return;
+
+  titleEl.textContent = title;
+  messageEl.textContent = message;
+
+  if (type === 'dev') {
+    iconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 9.36l-7.63 7.63a2 2 0 0 1-2.83-2.83l7.63-7.63a6.014 6.014 0 0 1 9.36-7.94l-3.76 3.76z"/></svg>`;
+  } else if (type === 'noshop') {
+    iconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  } else {
+    iconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`;
+  }
+
+  overlay.style.display = "flex";
+  hideSkeleton();
+  hideStatus();
+  clearPanel();
+}
+
+function hideSiteLock() {
+  const overlay = document.getElementById("site-lock-overlay");
+  if (overlay) overlay.style.display = "none";
+}
+
 let isScanning = false;
 
 function requestPageData(ratingFilter?: string) {
   if (isScanning) return;
   isScanning = true;
 
+  hideSiteLock();
   clearPanel();
   showSkeleton();
   setScanning(true);
@@ -491,35 +531,47 @@ function requestPageData(ratingFilter?: string) {
     const tabUrl = tabs[0].url || "";
     const competitorSites = [
       { pattern: "flipkart.", name: "Flipkart" },
+      { pattern: "ebay.", name: "eBay" },
       { pattern: "myntra.", name: "Myntra" },
       { pattern: "snapdeal.", name: "Snapdeal" },
       { pattern: "meesho.", name: "Meesho" },
       { pattern: "ajio.", name: "AJIO" },
       { pattern: "jiomart.", name: "JioMart" },
     ];
-    const matchedSite = competitorSites.find(s => tabUrl.includes(s.pattern));
+    const isCompetitor = competitorSites.find(s => tabUrl.includes(s.pattern));
 
-    if (matchedSite) {
+    if (isCompetitor) {
       isScanning = false;
       setScanning(false);
-      hideSkeleton();
-      showStatus(`<span class="status-icon">🚧</span><strong>${matchedSite.name}</strong> support is coming soon!<br>Bodhi Leaf currently works on <strong>Amazon</strong> product pages.`);
+      showSiteLock(
+        "Platform Support Coming Soon",
+        `Bodhi Leaf currently works on Amazon. Prototype support for ${isCompetitor.name} is in progress, stay tuned!`,
+        "dev"
+      );
       return;
     }
 
-    if (!tabUrl.includes("amazon.")) {
+    const isNonShopSite = !tabUrl.includes("amazon.") && !isCompetitor;
+    if (isNonShopSite) {
       isScanning = false;
       setScanning(false);
-      hideSkeleton();
-      showStatus('<span class="status-icon">🛒</span>Bodhi Leaf works on <strong>Amazon</strong> product pages.<br>Navigate to a product and try again.');
+      showSiteLock(
+        "Adaptive Commerce Copilot",
+        "Bodhi Leaf is designed to help you shop. Please use this extension on a shopping site like Amazon.",
+        "noshop"
+      );
       return;
     }
 
-    if (!tabUrl.includes("/dp/") && !tabUrl.includes("/gp/product/") && !tabUrl.includes("/product/")) {
+    const isAmazonProductPage = (tabUrl.includes("/dp/") || tabUrl.includes("/gp/product/") || tabUrl.includes("/product/"));
+    if (tabUrl.includes("amazon.") && !isAmazonProductPage) {
       isScanning = false;
       setScanning(false);
-      hideSkeleton();
-      showStatus('<span class="status-icon">📦</span>Navigate to a specific <strong>product page</strong> on Amazon to scan it.');
+      showSiteLock(
+        "Product Page Required",
+        "Please navigate to and open the extension on a specific product page to get AI insights.",
+        "noproduct"
+      );
       return;
     }
 
@@ -589,22 +641,31 @@ function requestPageData(ratingFilter?: string) {
             }
             return null;
           }).filter(Boolean),
-          reviews: Array.from(document.querySelectorAll(s.reviewDivs)).slice(0, 10).map((rev: Element) => {
-            const titleEl = rev.querySelector(s.reviewTitle);
-            const bodyEl = rev.querySelector(s.reviewBody);
-            const nameEl = rev.querySelector(s.reviewerName);
-            const starsEl = rev.querySelector(s.reviewStars);
-            const dateEl = rev.querySelector(s.reviewDate);
-            return {
-              title: titleEl ? cleanText(titleEl) : "",
-              body: bodyEl ? cleanText(bodyEl) : "",
-              author: nameEl ? cleanText(nameEl) : "",
-              stars: starsEl ? cleanText(starsEl) : "",
-              date: dateEl ? cleanText(dateEl) : "",
-            };
-          }),
-          specs: getTableRows(s.technicalDetails),
+          reviews: (() => {
+            const nodes = document.querySelectorAll(s.reviewDivs);
+            return Array.from(nodes).slice(0, 10).map((rev: Element) => {
+              const titleEl = rev.querySelector(s.reviewTitle);
+              const bodyEl = rev.querySelector(s.reviewBody);
+              const nameEl = rev.querySelector(s.reviewerName);
+              const starsEl = rev.querySelector(s.reviewStars);
+              const dateEl = rev.querySelector(s.reviewDate);
+              return {
+                title: titleEl ? cleanText(titleEl) : "",
+                body: bodyEl ? cleanText(bodyEl) : "",
+                author: nameEl ? cleanText(nameEl) : "",
+                stars: starsEl ? cleanText(starsEl) : "",
+                date: dateEl ? cleanText(dateEl) : "",
+              };
+            });
+          })(),
+          specs: (() => {
+            const rows = getTableRows(s.technicalDetails);
+            return rows;
+          })(),
           seller: getText(s.buyBoxSeller),
+          description: getText(s.productDescription),
+          variations: Array.from(document.querySelectorAll(s.variationLabels)).map(el => cleanText(el)).filter(Boolean),
+          twisterData: getText(s.twisterOptions),
         };
 
         if (ratingFilter) {
@@ -945,6 +1006,25 @@ function renderInsights(insights: Awaited<ReturnType<typeof generateInsights>>) 
   if ((insights as any).chatSuggestions?.length) {
     renderChatSuggestions((insights as any).chatSuggestions);
   }
+
+  // Options Summary (Twister)
+  if ((insights as any).optionsSummary && insightsDealScore?.parentElement) {
+    let existingOptions = insightsDealScore.parentElement.querySelector(".options-summary-card");
+    if (existingOptions) existingOptions.remove();
+    const section = document.createElement("div");
+    section.className = "options-summary-card";
+    section.innerHTML = `
+      <div class="options-summary-title">Variation Insights</div>
+      <div class="options-summary-text">${escapeHtml((insights as any).optionsSummary)}</div>
+    `;
+    // Insert after specsExplained if it exists, otherwise at the end
+    const specsExt = insightsDealScore.parentElement.querySelector(".specs-layman");
+    if (specsExt) {
+      specsExt.after(section);
+    } else {
+      insightsDealScore.parentElement.appendChild(section);
+    }
+  }
 }
 
 async function loadInsightsAsync(data: any) {
@@ -1143,6 +1223,17 @@ function toggleChatOverlay(open?: boolean) {
 chatFab?.addEventListener("click", () => toggleChatOverlay());
 chatOverlayClose?.addEventListener("click", () => toggleChatOverlay(false));
 
+chatSuggestionsToggle?.addEventListener("click", () => {
+  const isExpanded = chatSuggestionsToggle.getAttribute("aria-expanded") === "true";
+  chatSuggestionsToggle.setAttribute("aria-expanded", String(!isExpanded));
+});
+
+chatInput?.addEventListener("input", () => {
+  if (chatInput.value.trim().length > 0 && chatSuggestionsToggle) {
+    chatSuggestionsToggle.setAttribute("aria-expanded", "false");
+  }
+});
+
 function incrementUnread() {
   if (chatOverlayOpen) return;
   unreadCount++;
@@ -1152,6 +1243,16 @@ function incrementUnread() {
   }
 }
 
+const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+const PAUSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+const STOP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>`;
+
+const POLLY_LANG_MAP: Record<string, string> = {
+  en: "en-IN", hi: "hi-IN", mr: "hi-IN",
+  ta: "hi-IN", te: "hi-IN", bn: "hi-IN",
+  gu: "hi-IN", kn: "hi-IN", ml: "hi-IN",
+};
+
 // Chat helpers
 function appendChatMessage(role: "user" | "assistant" | "error", text: string) {
   if (!chatMessagesEl) return;
@@ -1160,7 +1261,137 @@ function appendChatMessage(role: "user" | "assistant" | "error", text: string) {
   if (role === "user") div.classList.add("chat-message-user");
   else if (role === "assistant") div.classList.add("chat-message-assistant");
   else div.classList.add("chat-message-error");
-  div.textContent = text;
+
+  // Content wrapper
+  const content = document.createElement("div");
+  content.classList.add("chat-message-content");
+  content.textContent = text;
+  div.appendChild(content);
+
+  // Footer for assistant messages
+  if (role === "assistant") {
+    const footer = document.createElement("div");
+    footer.classList.add("chat-message-footer");
+    footer.innerHTML = `
+      <div class="chat-tts-controls">
+        <button class="chat-tts-btn chat-tts-play" title="Play / Pause">${PLAY_ICON}</button>
+        <button class="chat-tts-btn chat-tts-stop" title="Stop" disabled>${STOP_ICON}</button>
+        <select class="chat-tts-lang">
+          <option value="en">EN</option>
+          <option value="hi">HI</option>
+          <option value="ta">TA</option>
+          <option value="te">TE</option>
+          <option value="bn">BN</option>
+          <option value="mr">MR</option>
+          <option value="gu">GU</option>
+          <option value="kn">KN</option>
+          <option value="ml">ML</option>
+        </select>
+      </div>
+      <div class="chat-tts-status"></div>
+    `;
+    div.appendChild(footer);
+
+    // Bind events
+    const playBtn = footer.querySelector(".chat-tts-play") as HTMLButtonElement;
+    const stopBtn = footer.querySelector(".chat-tts-stop") as HTMLButtonElement;
+    const langSelect = footer.querySelector(".chat-tts-lang") as HTMLSelectElement;
+    const statusEl = footer.querySelector(".chat-tts-status") as HTMLElement;
+
+    let audio: HTMLAudioElement | null = null;
+    let currentTtsText = text;
+
+    const stopAudio = () => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      playBtn.innerHTML = PLAY_ICON;
+      playBtn.classList.remove("playing");
+      stopBtn.disabled = true;
+    };
+
+    playBtn.addEventListener("click", async () => {
+      if (audio && !audio.paused) {
+        audio.pause();
+        playBtn.innerHTML = PLAY_ICON;
+        playBtn.classList.remove("playing");
+        return;
+      }
+
+      if (audio && audio.paused && audio.currentTime > 0) {
+        audio.play();
+        playBtn.innerHTML = PAUSE_ICON;
+        playBtn.classList.add("playing");
+        return;
+      }
+
+      // Need to generate/fetch audio
+      const lang = langSelect.value;
+      const langName = langSelect.selectedOptions[0].textContent;
+
+      try {
+        playBtn.disabled = true;
+        langSelect.disabled = true;
+        statusEl.innerHTML = `<div class="chat-tts-spinner"></div> Translating…`;
+
+        let textToSpeak = text;
+        if (lang !== "en") {
+          const trRes = await fetch(`${API_BASE_URL}/api/translate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, target_lang: lang }),
+          });
+          if (!trRes.ok) throw new Error("Translation failed");
+          const trData = await trRes.json();
+          textToSpeak = trData.translated;
+        }
+
+        statusEl.innerHTML = `<div class="chat-tts-spinner"></div> Voice…`;
+        const pollyLang = POLLY_LANG_MAP[lang] || "hi-IN";
+        const ttsRes = await fetch(`${API_BASE_URL}/api/tts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: textToSpeak,
+            voice_id: "Kajal",
+            engine: "generative",
+            language_code: pollyLang
+          }),
+        });
+        if (!ttsRes.ok) throw new Error("TTS failed");
+        const ttsData = await ttsRes.json();
+
+        audio = new Audio(`data:${ttsData.content_type};base64,${ttsData.audio_base64}`);
+        audio.addEventListener("ended", stopAudio);
+        audio.addEventListener("play", () => {
+          playBtn.innerHTML = PAUSE_ICON;
+          playBtn.classList.add("playing");
+          stopBtn.disabled = false;
+        });
+        audio.addEventListener("pause", () => {
+          playBtn.innerHTML = PLAY_ICON;
+          playBtn.classList.remove("playing");
+        });
+
+        audio.play();
+        statusEl.textContent = "";
+      } catch (err) {
+        console.error("[bodhi-leaf] Chat TTS failed:", err);
+        statusEl.textContent = "Error";
+      } finally {
+        playBtn.disabled = false;
+        langSelect.disabled = false;
+      }
+    });
+
+    stopBtn.addEventListener("click", stopAudio);
+    langSelect.addEventListener("change", () => {
+      stopAudio();
+      audio = null; // Reset audio to force re-generation for new language
+    });
+  }
+
   chatMessagesEl.appendChild(div);
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 }
@@ -1170,7 +1401,10 @@ async function handleChatSubmit(message: string) {
   if (!message.trim()) return;
 
   isChatSending = true;
-  if (chatSendBtn) chatSendBtn.disabled = true;
+  if (chatSendBtn) {
+    chatSendBtn.disabled = true;
+    chatSendBtn.classList.add("loading");
+  }
 
   appendChatMessage("user", message.trim());
   const userMsg: ChatMessage = { role: "user", content: message.trim() };
@@ -1188,7 +1422,10 @@ async function handleChatSubmit(message: string) {
     appendChatMessage("error", "Sorry, the product chat is unavailable right now. Please try again in a moment.");
   } finally {
     isChatSending = false;
-    if (chatSendBtn) chatSendBtn.disabled = false;
+    if (chatSendBtn) {
+      chatSendBtn.disabled = false;
+      chatSendBtn.classList.remove("loading");
+    }
   }
 }
 
@@ -1213,4 +1450,15 @@ document.querySelectorAll(".review-sentiment-btn").forEach(btn => {
     currentSentiment = (btn as HTMLElement).dataset.sentiment || "all";
     filterReviews(currentSentiment, reviewSearch?.value || "");
   });
+});
+
+// Auto-scan on tab navigation and load
+chrome.tabs.onActivated.addListener(() => {
+  requestPageData();
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.active) {
+    requestPageData();
+  }
 });
