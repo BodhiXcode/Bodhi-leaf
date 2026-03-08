@@ -29,5 +29,7 @@ THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPL
 
 ## Contact
 
-For licensing inquiries, contact the authors via GitHub:
-https://github.com/BodhiXcode/Bodhi-leaf
+For licensing inquiries, contact:
+- hello.bodhix@gmail.com
+- smil.raj.thakur@gmail.com
+- agnibha10@gmail.com
