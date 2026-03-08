@@ -71,8 +71,10 @@ If we make changes to this privacy policy, we will update the "Last updated" dat
 
 ## Contact
 
-For questions about this privacy policy, please open an issue at:
-https://github.com/BodhiXcode/Bodhi-leaf/issues
+For questions about this privacy policy, contact:
+- hello.bodhix@gmail.com
+- smil.raj.thakur@gmail.com
+- agnibha10@gmail.com
 
 ## Authors
 
