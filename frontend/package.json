@@ -8,10 +8,9 @@
     "dev": "node scripts/build.mjs --watch",
     "clean": "rm -rf dist"
   },
-  "private": "true",
+  "private": true,
   "author": "Smil Thakur, Agnibha Sarkar",
   "license": "SEE LICENSE IN LICENSE.md",
-  "private": true,
   "devDependencies": {
     "chrome-types": "^0.1.420",
     "esbuild": "^0.27.3",
